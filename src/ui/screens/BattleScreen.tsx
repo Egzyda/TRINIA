@@ -271,6 +271,7 @@ export function BattleScreen({ config, onExit }: Props) {
       <StatusBar player={foePlayer} side="foe" />
 
       <div className="board">
+        <div className="board-foe">
         <Zone label="相手施設">
           {renderSlots(foePlayer.facilities.length, RULES.MAX_FACILITIES, (i) => {
             const f = foePlayer.facilities[i];
@@ -317,8 +318,11 @@ export function BattleScreen({ config, onExit }: Props) {
           </button>
         )}
 
+        </div>
+
         <div className="divider" />
 
+        <div className="board-me">
         {isTargetable({ kind: 'base', player: me }) && (
           <button className="base-target" onClick={() => tapTarget({ kind: 'base', player: me })}>
             自分の拠点を対象にする
@@ -362,6 +366,7 @@ export function BattleScreen({ config, onExit }: Props) {
             );
           })}
         </Zone>
+        </div>
       </div>
 
       <StatusBar player={myPlayer} side="me" />

@@ -312,10 +312,17 @@ button {
   flex: 1;
   display: flex;
   flex-direction: column;
+  /* 相手側は上、自分側は下に寄せ、余白を中央の「バトルエリア」にする（仕様書 3.2） */
+  justify-content: space-between;
   min-height: 0;
   overflow-y: auto;
   background:
     radial-gradient(ellipse at 50% 50%, rgba(90, 169, 255, 0.06), transparent 70%), var(--bg);
+}
+
+.board > .board-foe,
+.board > .board-me {
+  flex-shrink: 0;
 }
 
 .zone {
