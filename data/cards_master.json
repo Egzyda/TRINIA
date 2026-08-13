@@ -1,0 +1,663 @@
+{
+  "$schema": "./cards_master.schema.json",
+  "version": "2.1.0",
+  "balanceRevision": 3,
+  "cards": [
+    {
+      "id": "fund_light_attacker",
+      "no": 1,
+      "name": "軽量アタッカー",
+      "type": "unit",
+      "faction": "fund",
+      "cost": {
+        "fund": 1,
+        "mana": 0,
+        "aether": 0
+      },
+      "attack": 2,
+      "hp": 3,
+      "keywords": [],
+      "text": "基本兵士。",
+      "image_path": "assets/cards/fund_light_attacker.png",
+      "icon": "GiSwordman"
+    },
+    {
+      "id": "fund_heavy_guard",
+      "no": 2,
+      "name": "重装ガード",
+      "type": "unit",
+      "faction": "fund",
+      "cost": {
+        "fund": 3,
+        "mana": 0,
+        "aether": 0
+      },
+      "attack": 2,
+      "hp": 6,
+      "keywords": [
+        "taunt"
+      ],
+      "text": "【挑発】相手はこのユニットを優先して攻撃しなければならない。",
+      "image_path": "assets/cards/fund_heavy_guard.png",
+      "icon": "GiShieldBash"
+    },
+    {
+      "id": "fund_captain",
+      "no": 3,
+      "name": "部隊長",
+      "type": "spell",
+      "faction": "fund",
+      "cost": {
+        "fund": 2,
+        "mana": 0,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "このターン中、自軍前衛ユニット全員の攻撃力を+1する。",
+      "image_path": "assets/cards/fund_captain.png",
+      "icon": "GiSwordsPower",
+      "effects": [
+        {
+          "kind": "buffFriendlyUnits",
+          "attack": 1,
+          "duration": "turn"
+        }
+      ]
+    },
+    {
+      "id": "fund_archer",
+      "no": 4,
+      "name": "弓兵",
+      "type": "unit",
+      "faction": "fund",
+      "cost": {
+        "fund": 2,
+        "mana": 0,
+        "aether": 0
+      },
+      "attack": 2,
+      "hp": 2,
+      "keywords": [
+        "evasive"
+      ],
+      "text": "【すり抜け】敵前衛を無視して拠点・施設を攻撃できる。",
+      "image_path": "assets/cards/fund_archer.png",
+      "icon": "GiBowman"
+    },
+    {
+      "id": "fund_siege",
+      "no": 5,
+      "name": "攻城兵",
+      "type": "unit",
+      "faction": "fund",
+      "cost": {
+        "fund": 2,
+        "mana": 0,
+        "aether": 0
+      },
+      "attack": 2,
+      "hp": 3,
+      "keywords": [
+        "siege"
+      ],
+      "text": "【攻城】施設への攻撃時、与えるダメージが2倍になる。",
+      "image_path": "assets/cards/fund_siege.png",
+      "icon": "GiCatapult"
+    },
+    {
+      "id": "fund_gold_mine",
+      "no": 6,
+      "name": "金鉱山",
+      "type": "facility",
+      "faction": "fund",
+      "cost": {
+        "fund": 3,
+        "mana": 0,
+        "aether": 0
+      },
+      "hp": 6,
+      "keywords": [],
+      "text": "毎ターン開始時、資金+1。",
+      "image_path": "assets/cards/fund_gold_mine.png",
+      "icon": "GiGoldMine",
+      "passives": [
+        {
+          "kind": "upkeepResource",
+          "resource": "fund",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "fund_armory",
+      "no": 7,
+      "name": "武器庫",
+      "type": "facility",
+      "faction": "fund",
+      "cost": {
+        "fund": 3,
+        "mana": 0,
+        "aether": 0
+      },
+      "hp": 5,
+      "keywords": [],
+      "text": "起動：資金1を払い、自軍ユニット1体の攻撃力を永続+1（ターン1回）。",
+      "image_path": "assets/cards/fund_armory.png",
+      "icon": "GiAnvilImpact",
+      "activated": {
+        "kind": "buffUnitPermanent",
+        "cost": {
+          "fund": 1,
+          "mana": 0,
+          "aether": 0
+        },
+        "attack": 1,
+        "target": "friendlyUnit",
+        "perTurn": 1
+      }
+    },
+    {
+      "id": "fund_conscription",
+      "no": 8,
+      "name": "召集令状",
+      "type": "spell",
+      "faction": "fund",
+      "cost": {
+        "fund": 3,
+        "mana": 0,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "山札からコスト2以下の資金ユニットを1体直接召喚する。",
+      "image_path": "assets/cards/fund_conscription.png",
+      "icon": "GiScrollUnfurled",
+      "effects": [
+        {
+          "kind": "summonFromDeck",
+          "faction": "fund",
+          "maxCostTotal": 2,
+          "cardType": "unit"
+        }
+      ]
+    },
+    {
+      "id": "mana_flame_bolt",
+      "no": 9,
+      "name": "単体火炎魔法",
+      "type": "spell",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 2,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "敵ユニット1体、または敵拠点/施設に4ダメージ。",
+      "image_path": "assets/cards/mana_flame_bolt.png",
+      "icon": "GiFireball",
+      "effects": [
+        {
+          "kind": "damage",
+          "amount": 4,
+          "target": "anyEnemy"
+        }
+      ]
+    },
+    {
+      "id": "mana_inferno",
+      "no": 10,
+      "name": "全体範囲魔法",
+      "type": "spell",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 3,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "敵前衛ユニット全員に2ダメージ。",
+      "image_path": "assets/cards/mana_inferno.png",
+      "icon": "GiFireRing",
+      "effects": [
+        {
+          "kind": "damageAll",
+          "amount": 2,
+          "target": "enemyUnits"
+        }
+      ]
+    },
+    {
+      "id": "mana_freeze",
+      "no": 11,
+      "name": "凍結魔法",
+      "type": "spell",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 1,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "敵ユニット1体を、そのコントローラーの次のターン終了時まで攻撃不可にする。",
+      "image_path": "assets/cards/mana_freeze.png",
+      "icon": "GiIceCube",
+      "effects": [
+        {
+          "kind": "freeze",
+          "target": "enemyUnit"
+        }
+      ]
+    },
+    {
+      "id": "mana_counter",
+      "no": 12,
+      "name": "スペル打ち消し",
+      "type": "spell",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 3,
+        "aether": 0
+      },
+      "keywords": [
+        "counter"
+      ],
+      "text": "相手のスペル発動を無効化する。相手ターンにも発動できる。",
+      "image_path": "assets/cards/mana_counter.png",
+      "icon": "GiMagicShield",
+      "effects": [
+        {
+          "kind": "counterSpell"
+        }
+      ]
+    },
+    {
+      "id": "mana_pursuit_mage",
+      "no": 13,
+      "name": "追撃の魔導士",
+      "type": "unit",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 3,
+        "aether": 0
+      },
+      "attack": 2,
+      "hp": 4,
+      "keywords": [],
+      "text": "自分がスペルを発動するたび、敵拠点に1ダメージ。",
+      "image_path": "assets/cards/mana_pursuit_mage.png",
+      "icon": "GiWizardStaff",
+      "triggers": [
+        {
+          "on": "selfSpellCast",
+          "effect": {
+            "kind": "damage",
+            "amount": 1,
+            "target": "enemyBase",
+            "auto": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "mana_draw_spell",
+      "no": 14,
+      "name": "ドロー呪文",
+      "type": "spell",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 2,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "カードを2枚引く。",
+      "image_path": "assets/cards/mana_draw_spell.png",
+      "icon": "GiCardDraw",
+      "effects": [
+        {
+          "kind": "draw",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "mana_great_wisdom",
+      "no": 15,
+      "name": "大魔導の叡智",
+      "type": "spell",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 3,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "カードを3枚引く。",
+      "image_path": "assets/cards/mana_great_wisdom.png",
+      "icon": "GiBookCover",
+      "effects": [
+        {
+          "kind": "draw",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "id": "mana_crystal",
+      "no": 16,
+      "name": "魔力結晶",
+      "type": "facility",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 3,
+        "aether": 0
+      },
+      "hp": 6,
+      "keywords": [],
+      "text": "毎ターン開始時、魔力+1。",
+      "image_path": "assets/cards/mana_crystal.png",
+      "icon": "GiCrystalCluster",
+      "passives": [
+        {
+          "kind": "upkeepResource",
+          "resource": "mana",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "aether_power_plant",
+      "no": 17,
+      "name": "古代の発電所",
+      "type": "facility",
+      "faction": "aether",
+      "cost": {
+        "fund": 0,
+        "mana": 0,
+        "aether": 3
+      },
+      "hp": 6,
+      "keywords": [],
+      "text": "毎ターン開始時、エーテル+1。",
+      "image_path": "assets/cards/aether_power_plant.png",
+      "icon": "GiPowerGenerator",
+      "passives": [
+        {
+          "kind": "upkeepResource",
+          "resource": "aether",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "aether_barrier",
+      "no": 18,
+      "name": "防壁発生装置",
+      "type": "facility",
+      "faction": "aether",
+      "cost": {
+        "fund": 0,
+        "mana": 0,
+        "aether": 3
+      },
+      "hp": 5,
+      "keywords": [],
+      "text": "自分の拠点が受けるダメージを1軽減する（前衛ユニットには適用されない／複数枚でも重複しない）。",
+      "image_path": "assets/cards/aether_barrier.png",
+      "icon": "GiEnergyShield",
+      "passives": [
+        {
+          "kind": "damageReduction",
+          "amount": 1,
+          "stacks": false,
+          "scope": "base"
+        }
+      ]
+    },
+    {
+      "id": "aether_prayer",
+      "no": 19,
+      "name": "聖なる祈り",
+      "type": "spell",
+      "faction": "aether",
+      "cost": {
+        "fund": 0,
+        "mana": 0,
+        "aether": 2
+      },
+      "keywords": [],
+      "text": "自分の拠点HPを5回復する（上限50）。",
+      "image_path": "assets/cards/aether_prayer.png",
+      "icon": "GiPrayer",
+      "effects": [
+        {
+          "kind": "heal",
+          "amount": 5,
+          "target": "selfBase"
+        }
+      ]
+    },
+    {
+      "id": "aether_immune_beast",
+      "no": 20,
+      "name": "完全耐性モンスター",
+      "type": "unit",
+      "faction": "aether",
+      "cost": {
+        "fund": 0,
+        "mana": 0,
+        "aether": 7
+      },
+      "attack": 7,
+      "hp": 8,
+      "keywords": [
+        "magicImmune"
+      ],
+      "text": "【魔法耐性】相手のスペルの対象にならない（対象を取らない全体効果は受ける）。",
+      "image_path": "assets/cards/aether_immune_beast.png",
+      "icon": "GiGolemHead"
+    },
+    {
+      "id": "aether_regen_guardian",
+      "no": 21,
+      "name": "再生ガーディアン",
+      "type": "unit",
+      "faction": "aether",
+      "cost": {
+        "fund": 0,
+        "mana": 0,
+        "aether": 4
+      },
+      "attack": 3,
+      "hp": 4,
+      "keywords": [
+        "regenerate"
+      ],
+      "text": "【再生】破壊された時、HP1で1度だけ前衛に復活する。",
+      "image_path": "assets/cards/aether_regen_guardian.png",
+      "icon": "GiRegeneration",
+      "regenerateUses": 1
+    },
+    {
+      "id": "aether_dimensional_jar",
+      "no": 22,
+      "name": "次元の壺",
+      "type": "facility",
+      "faction": "aether",
+      "cost": {
+        "fund": 0,
+        "mana": 0,
+        "aether": 2
+      },
+      "hp": 5,
+      "keywords": [],
+      "text": "起動：毎ターン1回、エーテル1を任意のリソース1に変換する。",
+      "image_path": "assets/cards/aether_dimensional_jar.png",
+      "icon": "GiMagicPortal",
+      "activated": {
+        "kind": "convertResource",
+        "cost": {
+          "fund": 0,
+          "mana": 0,
+          "aether": 1
+        },
+        "gain": 1,
+        "perTurn": 1
+      }
+    },
+    {
+      "id": "aether_time_stop",
+      "no": 23,
+      "name": "タイムストップ",
+      "type": "spell",
+      "faction": "aether",
+      "cost": {
+        "fund": 0,
+        "mana": 0,
+        "aether": 8
+      },
+      "keywords": [],
+      "text": "相手の次のターンのメインフェイズをスキップする（ドローと分配は行える）。",
+      "image_path": "assets/cards/aether_time_stop.png",
+      "icon": "GiTimeTrap",
+      "effects": [
+        {
+          "kind": "skipMainPhase",
+          "turns": 1,
+          "target": "opponent"
+        }
+      ]
+    },
+    {
+      "id": "hybrid_alchemy",
+      "no": 24,
+      "name": "錬金術",
+      "type": "spell",
+      "faction": "hybrid",
+      "cost": {
+        "fund": 1,
+        "mana": 0,
+        "aether": 0
+      },
+      "altCosts": [
+        {
+          "fund": 1,
+          "mana": 0,
+          "aether": 0
+        },
+        {
+          "fund": 0,
+          "mana": 1,
+          "aether": 0
+        }
+      ],
+      "keywords": [],
+      "text": "資金1または魔力1を支払い、それとは別のリソースを2得る。",
+      "image_path": "assets/cards/hybrid_alchemy.png",
+      "icon": "GiMagicPotion",
+      "effects": [
+        {
+          "kind": "gainResource",
+          "amount": 2,
+          "excludePaid": true
+        }
+      ]
+    },
+    {
+      "id": "hybrid_arcane_cannon",
+      "no": 25,
+      "name": "魔導砲",
+      "type": "facility",
+      "faction": "hybrid",
+      "cost": {
+        "fund": 2,
+        "mana": 2,
+        "aether": 0
+      },
+      "hp": 5,
+      "keywords": [],
+      "text": "起動：毎ターン1回、魔力1を払い任意の対象に2ダメージ。",
+      "image_path": "assets/cards/hybrid_arcane_cannon.png",
+      "icon": "GiCannon",
+      "activated": {
+        "kind": "damage",
+        "cost": {
+          "fund": 0,
+          "mana": 1,
+          "aether": 0
+        },
+        "amount": 2,
+        "target": "anyEnemy",
+        "perTurn": 1
+      }
+    },
+    {
+      "id": "hybrid_sabotage",
+      "no": 26,
+      "name": "施設破壊工作",
+      "type": "spell",
+      "faction": "hybrid",
+      "cost": {
+        "fund": 0,
+        "mana": 1,
+        "aether": 1
+      },
+      "keywords": [],
+      "text": "相手の施設1つを破壊する。",
+      "image_path": "assets/cards/hybrid_sabotage.png",
+      "icon": "GiExplosiveMaterials",
+      "effects": [
+        {
+          "kind": "destroyFacility",
+          "target": "enemyFacility"
+        }
+      ]
+    },
+    {
+      "id": "hybrid_titan",
+      "no": 27,
+      "name": "万物創造の巨神",
+      "type": "unit",
+      "faction": "hybrid",
+      "cost": {
+        "fund": 3,
+        "mana": 3,
+        "aether": 3
+      },
+      "attack": 9,
+      "hp": 8,
+      "keywords": [
+        "trample"
+      ],
+      "text": "【貫通】ユニットを撃破した際、超過ダメージが敵拠点へ貫通する。",
+      "image_path": "assets/cards/hybrid_titan.png",
+      "icon": "GiGiant"
+    },
+    {
+      "id": "hybrid_countdown",
+      "no": 28,
+      "name": "カウントダウン兵器",
+      "type": "facility",
+      "faction": "hybrid",
+      "cost": {
+        "fund": 2,
+        "mana": 2,
+        "aether": 2
+      },
+      "hp": 7,
+      "keywords": [],
+      "text": "自分のターン開始時にカウンターが1つ増える。カウンターが5個になった時、特殊勝利する。",
+      "image_path": "assets/cards/hybrid_countdown.png",
+      "icon": "GiTimeBomb",
+      "passives": [
+        {
+          "kind": "countdownWin",
+          "turns": 5
+        }
+      ]
+    }
+  ]
+}
