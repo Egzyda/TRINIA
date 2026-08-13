@@ -1,0 +1,13 @@
+# Cloudflare Pages 設定
+#
+# デプロイ:
+#   npm run build
+#   npx wrangler pages deploy dist --project-name=trinia
+#
+# GitHub連携でPagesプロジェクトを作る場合のビルド設定:
+#   Build command      : npm run build
+#   Build output dir   : dist
+#   Node version       : 22
+name = "trinia"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "dist"
