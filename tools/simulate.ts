@@ -22,6 +22,8 @@ import type { PlayerId } from '../src/core/types';
 interface Args {
   games: number;
   ai: Difficulty;
+  /** 先手側だけ別の難易度にする（AI強度の比較用） */
+  aiA?: Difficulty;
   cards: boolean;
   deck?: string;
   seed: number;
@@ -33,6 +35,7 @@ function parseArgs(argv: string[]): Args {
     const a = argv[i];
     if (a === '--games') args.games = Number(argv[++i]);
     else if (a === '--ai') args.ai = argv[++i] as Difficulty;
+    else if (a === '--ai-a') args.aiA = argv[++i] as Difficulty;
     else if (a === '--cards') args.cards = true;
     else if (a === '--deck') args.deck = argv[++i];
     else if (a === '--seed') args.seed = Number(argv[++i]);
@@ -74,7 +77,9 @@ function main(): void {
   const opponents = DECK_PRESETS;
 
   console.log(`\n=== TRINIA バランスシミュレーション ===`);
-  console.log(`AI: ${args.ai} / 各組み合わせ ${args.games} 戦 / seed ${args.seed}\n`);
+  console.log(
+    `AI: 先手=${args.aiA ?? args.ai} / 後手=${args.ai} / 各組み合わせ ${args.games} 戦 / seed ${args.seed}\n`,
+  );
 
   const overall = emptyTally();
   const perDeck = new Map<string, Tally>();
@@ -88,7 +93,7 @@ function main(): void {
       const t = emptyTally();
       for (let g = 0; g < args.games; g++) {
         const seed = (args.seed + g * 7919) | 0;
-        const r = playMatch({ deckA: a.id, deckB: b.id, aiA: args.ai, aiB: args.ai, seed });
+        const r = playMatch({ deckA: a.id, deckB: b.id, aiA: args.aiA ?? args.ai, aiB: args.ai, seed });
         t.games += 1;
         t.turnsTotal += r.turns;
         t.hpTotal += Math.max(r.finalHp[0], r.finalHp[1]);

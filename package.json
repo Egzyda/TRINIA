@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "sim": "tsx tools/simulate.ts",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name=trinia",
+    "sim:auction": "tsx tools/auction.ts",
+    "sim:inspect": "tsx tools/inspect.ts"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
