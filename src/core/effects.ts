@@ -19,8 +19,8 @@ import {
   opponentOf,
   summonUnit,
 } from './gameState';
-import { RULES } from './rules';
 import type {
+  CardDef,
   CardEffect,
   GameState,
   PlayerId,
@@ -43,6 +43,15 @@ export interface EffectContext {
   paidResource?: ResourceKind;
   /** スペルによる効果か（【魔法耐性】判定に使う） */
   isSpell: boolean;
+}
+
+/**
+ * そのカードをプレイしたときに解決される効果。
+ * スペルは effects、ユニット・施設は onSummon（召喚時誘発）を使う。
+ * 対象指定の検証・UIの対象選択・AIの候補列挙が全部これを見る。
+ */
+export function entryEffects(def: CardDef): CardEffect[] {
+  return def.type === 'spell' ? (def.effects ?? []) : (def.onSummon ?? []);
 }
 
 /** 効果が要求する対象種別を取り出す（対象を取らない効果は 'none'） */
@@ -178,7 +187,7 @@ export function resolveEffect(ctx: EffectContext, effect: CardEffect): void {
     }
 
     case 'summonFromDeck': {
-      if (me.units.length >= RULES.MAX_UNITS) {
+      if (me.units.length >= state.rules.MAX_UNITS) {
         log(state, controller, `${sourceName}: 前衛が満杯のため召喚できなかった。`);
         break;
       }

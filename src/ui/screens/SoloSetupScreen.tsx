@@ -6,12 +6,19 @@ import { useState } from 'react';
 import { ChevronLeft, Play } from 'lucide-react';
 import { DECK_PRESETS } from '../../cards/decks';
 import { DIFFICULTY_DESCRIPTION, DIFFICULTY_LABEL, type Difficulty } from '../../ai';
+import { MATCH_MODES, type MatchModeId } from '../../core/rules';
 import type { DeckSlot } from '../deckStorage';
 
 interface Props {
   slots: DeckSlot[];
   onBack: () => void;
-  onStart: (opts: { myDeck: string[]; myName: string; foeDeckId: string; difficulty: Difficulty }) => void;
+  onStart: (opts: {
+    myDeck: string[];
+    myName: string;
+    foeDeckId: string;
+    difficulty: Difficulty;
+    mode: MatchModeId;
+  }) => void;
 }
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'normal', 'hard'];
@@ -21,6 +28,7 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
   const [myDeckIdx, setMyDeckIdx] = useState(0);
   const [foeDeckId, setFoeDeckId] = useState(DECK_PRESETS[1].id);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  const [mode, setMode] = useState<MatchModeId>('standard');
 
   const myDeck = usable[myDeckIdx];
 
@@ -35,6 +43,36 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
 
       <div className="screen-scroll">
         <div className="room">
+          <div>
+            <div className="prompt-title">対局モード</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {MATCH_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  className="menu-card"
+                  style={
+                    m.id === mode
+                      ? { borderColor: 'var(--accent)', background: 'var(--bg-panel-2)' }
+                      : undefined
+                  }
+                  onClick={() => setMode(m.id)}
+                >
+                  <span className="mc-body">
+                    <span className="mc-title">
+                      {m.name}
+                      <span style={{ color: 'var(--text-dim)', fontWeight: 400, fontSize: 11 }}>
+                        {'  '}拠点HP {m.overrides.BASE_HP} / 毎ターン {m.overrides.FREE_POINTS}pt /{' '}
+                        {m.turnsHint}
+                      </span>
+                    </span>
+                    <br />
+                    <span className="mc-desc">{m.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <div className="prompt-title">使用デッキ</div>
             <div className="deck-tabs" style={{ padding: 0, border: 'none' }}>
@@ -97,7 +135,7 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
             disabled={!myDeck}
             onClick={() =>
               myDeck &&
-              onStart({ myDeck: myDeck.cards, myName: myDeck.name, foeDeckId, difficulty })
+              onStart({ myDeck: myDeck.cards, myName: myDeck.name, foeDeckId, difficulty, mode })
             }
           >
             <Play size={16} /> 対局開始

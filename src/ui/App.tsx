@@ -37,7 +37,7 @@ export function App() {
         <SoloSetupScreen
           slots={slots}
           onBack={() => setScreen('home')}
-          onStart={({ myDeck, myName, foeDeckId, difficulty }) => {
+          onStart={({ myDeck, myName, foeDeckId, difficulty, mode }) => {
             const foe = getPreset(foeDeckId);
             setBattleConfig({
               myDeck,
@@ -48,6 +48,7 @@ export function App() {
               // 対局ごとに違う卓になるよう時刻からシードを作る
               seed: (Date.now() ^ 0x2545f491) | 0,
               mySide: 0,
+              mode,
             });
             setScreen('battle');
           }}

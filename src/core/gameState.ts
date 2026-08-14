@@ -5,7 +5,7 @@
  * （ドロー / ダメージ / 破壊 / 墓地送り）を提供する。
  * フェイズ進行そのものは mainPhaseEngine.ts が担当する。
  */
-import { RULES } from './rules';
+import { RULES, type RuleSet } from './rules';
 import { shuffle } from './rng';
 import { getCard, makeCardInstance, makeFacilityInstance, makeUnitInstance } from '../cards/cardFactory';
 import type {
@@ -49,13 +49,19 @@ export interface PlayerSetup {
  * 対局を生成し、オークションフェイズの状態を返す。
  * 初期手札6枚は「引き直しなし」で配りきる（仕様書 2.1）。
  */
-export function createGame(p0: PlayerSetup, p1: PlayerSetup, seed: number): GameState {
+export function createGame(
+  p0: PlayerSetup,
+  p1: PlayerSetup,
+  seed: number,
+  rules: RuleSet = RULES,
+): GameState {
   const state: GameState = {
+    rules,
     phase: 'auction',
     active: 0,
     priority: 0,
     turn: 0,
-    players: [makePlayer(0, p0), makePlayer(1, p1)],
+    players: [makePlayer(0, p0, rules), makePlayer(1, p1, rules)],
     stack: [],
     rngState: seed,
     winner: null,
@@ -75,19 +81,19 @@ export function createGame(p0: PlayerSetup, p1: PlayerSetup, seed: number): Game
   }
 
   for (const player of state.players) {
-    for (let i = 0; i < RULES.INITIAL_HAND; i++) drawCard(state, player.id);
+    for (let i = 0; i < rules.INITIAL_HAND; i++) drawCard(state, player.id);
   }
 
-  log(state, null, `対局開始。両者は先攻権への提示HPを入力してください（0〜${RULES.MAX_BID}）。`);
+  log(state, null, `対局開始。両者は先攻権への提示HPを入力してください（0〜${rules.MAX_BID}）。`);
   return state;
 }
 
-function makePlayer(id: PlayerId, setup: PlayerSetup): PlayerState {
+function makePlayer(id: PlayerId, setup: PlayerSetup, rules: RuleSet): PlayerState {
   return {
     id,
     name: setup.name,
-    baseHp: RULES.BASE_HP,
-    maxBaseHp: RULES.BASE_HP,
+    baseHp: rules.BASE_HP,
+    maxBaseHp: rules.BASE_HP,
     resources: { fund: 0, mana: 0, aether: 0 },
     hand: [],
     deck: [],
@@ -321,7 +327,7 @@ export function destroyFacility(state: GameState, facility: FacilityInstance): v
 
 export function summonUnit(state: GameState, playerId: PlayerId, defId: string): UnitInstance | null {
   const p = state.players[playerId];
-  if (p.units.length >= RULES.MAX_UNITS) return null;
+  if (p.units.length >= state.rules.MAX_UNITS) return null;
   const unit = makeUnitInstance(nextUid(state, 'u'), defId, playerId);
   p.units.push(unit);
   return unit;
@@ -333,7 +339,7 @@ export function buildFacility(
   defId: string,
 ): FacilityInstance | null {
   const p = state.players[playerId];
-  if (p.facilities.length >= RULES.MAX_FACILITIES) return null;
+  if (p.facilities.length >= state.rules.MAX_FACILITIES) return null;
   const facility = makeFacilityInstance(nextUid(state, 'f'), defId, playerId);
   p.facilities.push(facility);
   return facility;
@@ -377,6 +383,8 @@ export function declareWin(state: GameState, winner: PlayerId, reason: string): 
  */
 export function cloneState(state: GameState): GameState {
   return {
+    // ルールセットは対局中に変化しないので参照コピーで足りる
+    rules: state.rules,
     phase: state.phase,
     active: state.active,
     priority: state.priority,

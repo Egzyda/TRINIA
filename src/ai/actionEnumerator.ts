@@ -8,7 +8,7 @@ import { getCard } from '../cards/cardFactory';
 import { costOptions, paidResourceOf } from '../cards/baseCard';
 import { legalAttackTargets, playableCards } from '../core/mainPhaseEngine';
 import { canAttack } from '../core/mainPhaseEngine';
-import { legalTargets, requiresTarget, targetSpecOf } from '../core/effects';
+import { entryEffects, legalTargets, requiresTarget, targetSpecOf } from '../core/effects';
 import { RESOURCE_KINDS } from '../core/types';
 import type { GameAction, GameState, PlayerId, ResourceKind, TargetRef } from '../core/types';
 
@@ -45,13 +45,13 @@ export function enumerateMainActions(state: GameState, playerId: PlayerId): Game
   // --- カードをプレイする ---
   for (const playable of playableCards(state, playerId)) {
     const def = getCard(playable.defId);
-    const needsTargets = (def.effects ?? []).filter(requiresTarget).map(targetSpecOf);
+    const needsTargets = entryEffects(def).filter(requiresTarget).map(targetSpecOf);
     const combos = needsTargets.length
       ? targetCombinations(state, playerId, needsTargets, def.type === 'spell')
       : [[]];
 
     // 錬金術のように獲得リソースを選ぶカード
-    const needsChoice = (def.effects ?? []).some((e) => e.kind === 'gainResource');
+    const needsChoice = entryEffects(def).some((e) => e.kind === 'gainResource');
     const paid = paidResourceOf(costOptions(def)[playable.costOption]);
     const choices: (ResourceKind | undefined)[] = needsChoice
       ? RESOURCE_KINDS.filter((r) => r !== paid)

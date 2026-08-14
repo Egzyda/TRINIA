@@ -10,7 +10,6 @@
  */
 import { getCard } from '../cards/cardFactory';
 import { applyAction, playableCards } from '../core/mainPhaseEngine';
-import { RULES } from '../core/rules';
 import { nextInt } from '../core/rng';
 import { enumerateAllocations, enumerateMainActions } from './actionEnumerator';
 import { evaluate } from './evaluate';
@@ -101,7 +100,7 @@ export function decideBid(state: GameState, me: PlayerId, ctx: AiContext): numbe
       return sum + cost.fund + cost.mana + cost.aether;
     }, 0) / Math.max(1, all.length);
 
-  if (ctx.difficulty === 'easy') return rand(ctx, Math.floor(RULES.MAX_BID / 2) + 1);
+  if (ctx.difficulty === 'easy') return rand(ctx, Math.floor(state.rules.MAX_BID / 2) + 1);
 
   // 前衛を並べて殴るデッキほど先攻の価値が高い。
   // 実測した均衡落札額は速攻寄りで上限付近、受け寄りで数点だった（tools/auction.ts）。
@@ -109,10 +108,10 @@ export function decideBid(state: GameState, me: PlayerId, ctx: AiContext): numbe
   const unitRatio = units / Math.max(1, all.length);
   const speed = Math.max(0, Math.min(1, unitRatio * 1.6 + (3.2 - avgCost) * 0.25));
 
-  const base = Math.round(RULES.MAX_BID * (0.15 + speed * 0.7));
+  const base = Math.round(state.rules.MAX_BID * (0.15 + speed * 0.7));
   const spread = ctx.difficulty === 'hard' ? 3 : 7;
   const jitter = rand(ctx, spread * 2 + 1) - spread;
-  return Math.max(0, Math.min(RULES.MAX_BID, base + jitter));
+  return Math.max(0, Math.min(state.rules.MAX_BID, base + jitter));
 }
 
 // ---------------------------------------------------------------------------
@@ -122,10 +121,10 @@ export function decideBid(state: GameState, me: PlayerId, ctx: AiContext): numbe
 export function decideAllocation(state: GameState, me: PlayerId, ctx: AiContext): GameAction {
   if (ctx.difficulty === 'easy') {
     // 資金一律優先（仕様書 4.2 EASY）
-    return { type: 'allocate', fund: RULES.FREE_POINTS, mana: 0, aether: 0, draw: 0 };
+    return { type: 'allocate', fund: state.rules.FREE_POINTS, mana: 0, aether: 0, draw: 0 };
   }
 
-  const options = enumerateAllocations(RULES.FREE_POINTS, RULES.DRAW_COST);
+  const options = enumerateAllocations(state.rules.FREE_POINTS, state.rules.DRAW_COST);
 
   // 一次スクリーニング: 「その分配で何枚プレイできるようになるか」で粗く絞る
   const screened = options
@@ -138,7 +137,7 @@ export function decideAllocation(state: GameState, me: PlayerId, ctx: AiContext)
     .sort((a, b) => b.quick - a.quick);
 
   if (screened.length === 0) {
-    return { type: 'allocate', fund: RULES.FREE_POINTS, mana: 0, aether: 0, draw: 0 };
+    return { type: 'allocate', fund: state.rules.FREE_POINTS, mana: 0, aether: 0, draw: 0 };
   }
 
   // 上位だけをターン最後まで回して本評価する
@@ -193,7 +192,7 @@ function allocationBias(state: GameState, action: GameAction): number {
   if (action.type !== 'allocate') return 0;
   const hand = state.players[state.active].hand.length;
   if (hand <= 2) return action.draw * 1.5;
-  if (hand >= RULES.HAND_LIMIT) return -action.draw * 2.0;
+  if (hand >= state.rules.HAND_LIMIT) return -action.draw * 2.0;
   return 0;
 }
 
@@ -284,7 +283,7 @@ function playGreedyTurn(state: GameState, player: PlayerId, maxSteps = 60): Game
 
 /** ロールアウト内で使う軽量な分配（本探索は decideAllocation が担当） */
 function greedyAllocation(state: GameState, me: PlayerId): GameAction {
-  const options = enumerateAllocations(RULES.FREE_POINTS, RULES.DRAW_COST);
+  const options = enumerateAllocations(state.rules.FREE_POINTS, state.rules.DRAW_COST);
   let best = options[0];
   let bestScore = -Infinity;
   for (const option of options) {
@@ -470,7 +469,7 @@ export function decideResponse(state: GameState, me: PlayerId, ctx: AiContext): 
 
 export function decideDiscard(state: GameState, me: PlayerId, ctx: AiContext): GameAction {
   const p = state.players[me];
-  const need = p.hand.length - RULES.HAND_LIMIT;
+  const need = p.hand.length - state.rules.HAND_LIMIT;
   if (need <= 0) return { type: 'discard', uids: [] };
   if (ctx.difficulty === 'easy') {
     return { type: 'discard', uids: p.hand.slice(0, need).map((c) => c.uid) };
@@ -481,7 +480,7 @@ export function decideDiscard(state: GameState, me: PlayerId, ctx: AiContext): G
 /** 手持ちリソースから最も遠い（＝当分打てない）カードから捨てる */
 function simpleDiscard(state: GameState, me: PlayerId): GameAction {
   const p = state.players[me];
-  const need = Math.max(0, p.hand.length - RULES.HAND_LIMIT);
+  const need = Math.max(0, p.hand.length - state.rules.HAND_LIMIT);
   const scored = p.hand.map((card) => {
     const def = getCard(card.defId);
     const deficit =

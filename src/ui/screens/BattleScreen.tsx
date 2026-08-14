@@ -15,9 +15,8 @@ import { CardSheet, FacilityChip, HandCard, ResourceIcon, UnitChip } from '../co
 import { useBattle, type BattleConfig } from '../useBattle';
 import { getCard } from '../../cards/cardFactory';
 import { costOptions, paidResourceOf } from '../../cards/baseCard';
-import { legalTargets, requiresTarget, targetSpecOf } from '../../core/effects';
+import { entryEffects, legalTargets, requiresTarget, targetSpecOf } from '../../core/effects';
 import { legalAttackTargets, playableCards } from '../../core/mainPhaseEngine';
-import { RULES } from '../../core/rules';
 import { RESOURCE_KINDS, RESOURCE_LABEL } from '../../core/types';
 import type {
   CardDef,
@@ -107,7 +106,7 @@ export function BattleScreen({ config, onExit }: Props) {
   /** 対象・リソース選択が揃ったら実際にアクションを送る */
   const commit = (p: NonNullable<Pending>) => {
     if (p.kind === 'playCard') {
-      const needsResource = (p.def.effects ?? []).some((e) => e.kind === 'gainResource');
+      const needsResource = entryEffects(p.def).some((e) => e.kind === 'gainResource');
       if (p.targets.length < p.specs.length) return;
       if (needsResource && !p.resource) return;
       if (dispatch({
@@ -159,9 +158,9 @@ export function BattleScreen({ config, onExit }: Props) {
     );
     if (costOption < 0) return;
 
-    const specs = (def.effects ?? []).filter(requiresTarget).map(targetSpecOf);
+    const specs = entryEffects(def).filter(requiresTarget).map(targetSpecOf);
     const next: Pending = { kind: 'playCard', uid, def, costOption, specs, targets: [] };
-    const needsResource = (def.effects ?? []).some((e) => e.kind === 'gainResource');
+    const needsResource = entryEffects(def).some((e) => e.kind === 'gainResource');
     if (specs.length === 0 && !needsResource) {
       if (dispatch({ type: 'playCard', uid, costOption })) setPending(null);
       return;
@@ -181,7 +180,7 @@ export function BattleScreen({ config, onExit }: Props) {
     if (pending.kind === 'playCard') {
       const targets = [...pending.targets, ref];
       const next = { ...pending, targets };
-      const needsResource = (pending.def.effects ?? []).some((e) => e.kind === 'gainResource');
+      const needsResource = entryEffects(pending.def).some((e) => e.kind === 'gainResource');
       if (targets.length >= pending.specs.length && !needsResource) {
         commit(next);
       } else {
@@ -248,8 +247,8 @@ export function BattleScreen({ config, onExit }: Props) {
   // -------------------------------------------------------------------------
 
   const allocTotal = alloc.fund + alloc.mana + alloc.aether + alloc.draw;
-  const allocRemain = RULES.FREE_POINTS - allocTotal;
-  const discardNeed = Math.max(0, myPlayer.hand.length - RULES.HAND_LIMIT);
+  const allocRemain = state.rules.FREE_POINTS - allocTotal;
+  const discardNeed = Math.max(0, myPlayer.hand.length - state.rules.HAND_LIMIT);
 
   return (
     <div className="screen battle">
@@ -273,7 +272,7 @@ export function BattleScreen({ config, onExit }: Props) {
       <div className="board">
         <div className="board-foe">
         <Zone label="相手施設">
-          {renderSlots(foePlayer.facilities.length, RULES.MAX_FACILITIES, (i) => {
+          {renderSlots(foePlayer.facilities.length, state.rules.MAX_FACILITIES, (i) => {
             const f = foePlayer.facilities[i];
             return (
               <FacilityChip
@@ -291,7 +290,7 @@ export function BattleScreen({ config, onExit }: Props) {
         </Zone>
 
         <Zone label="相手前衛">
-          {renderSlots(foePlayer.units.length, RULES.MAX_UNITS, (i) => {
+          {renderSlots(foePlayer.units.length, state.rules.MAX_UNITS, (i) => {
             const u = foePlayer.units[i];
             return (
               <UnitChip
@@ -330,7 +329,7 @@ export function BattleScreen({ config, onExit }: Props) {
         )}
 
         <Zone label="自分前衛">
-          {renderSlots(myPlayer.units.length, RULES.MAX_UNITS, (i) => {
+          {renderSlots(myPlayer.units.length, state.rules.MAX_UNITS, (i) => {
             const u = myPlayer.units[i];
             const targetable = isTargetable({ kind: 'unit', uid: u.uid });
             const selected = pending?.kind === 'attack' && pending.attackerUid === u.uid;
@@ -347,7 +346,7 @@ export function BattleScreen({ config, onExit }: Props) {
         </Zone>
 
         <Zone label="自分施設">
-          {renderSlots(myPlayer.facilities.length, RULES.MAX_FACILITIES, (i) => {
+          {renderSlots(myPlayer.facilities.length, state.rules.MAX_FACILITIES, (i) => {
             const f = myPlayer.facilities[i];
             const selected = pending?.kind === 'activate' && pending.facilityUid === f.uid;
             return (
@@ -381,6 +380,8 @@ export function BattleScreen({ config, onExit }: Props) {
         {/* --- オークション（仕様書 2.2） --- */}
         {state.phase === 'auction' && myPlayer.bid < 0 && (
           <AuctionPanel
+            maxBid={state.rules.MAX_BID}
+            baseHp={myPlayer.baseHp}
             value={bid}
             onChange={setBid}
             onSubmit={() => dispatch({ type: 'bid', player: me, amount: bid })}
@@ -396,7 +397,7 @@ export function BattleScreen({ config, onExit }: Props) {
         {state.phase === 'allocate' && isMyTurn && (
           <div className="prompt">
             <div className="prompt-title">
-              フリーポイント{RULES.FREE_POINTS}ptを分配してください
+              フリーポイント{state.rules.FREE_POINTS}ptを分配してください
             </div>
             <div className="alloc-grid">
               {(['fund', 'mana', 'aether'] as const).map((kind) => (
@@ -613,10 +614,14 @@ function AllocCell({
  * 時間切れ時は現在のスライダー値で自動確定する。
  */
 function AuctionPanel({
+  maxBid,
+  baseHp,
   value,
   onChange,
   onSubmit,
 }: {
+  maxBid: number;
+  baseHp: number;
   value: number;
   onChange: (v: number) => void;
   onSubmit: () => void;
@@ -649,7 +654,9 @@ function AuctionPanel({
         <small> HP</small>
       </div>
       <div className="auction-hint">
-        高い方が先攻。支払ったHPだけ減った状態で始まります（残り{Math.ceil(remain / 1000)}秒）
+        高い方が先攻。支払ったHPだけ減った状態で始まります
+        <br />
+        提示すると 拠点HP {baseHp - value} で開始（残り{Math.ceil(remain / 1000)}秒）
       </div>
       <div className="auction-timer">
         <div style={{ width: `${(remain / LIMIT_MS) * 100}%` }} />
@@ -658,7 +665,7 @@ function AuctionPanel({
         className="auction-slider"
         type="range"
         min={0}
-        max={RULES.MAX_BID}
+        max={maxBid}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
       />
@@ -729,8 +736,7 @@ function PendingPanel({
   if (pending.kind === 'attack') {
     title = '攻撃対象を選んでください（もう一度タップでキャンセル）';
   } else if (pending.kind === 'playCard') {
-    needsResource =
-      (pending.def.effects ?? []).some((e) => e.kind === 'gainResource') && !pending.resource;
+    needsResource = entryEffects(pending.def).some((e) => e.kind === 'gainResource') && !pending.resource;
     excluded = paidResourceOf(costOptions(pending.def)[pending.costOption]);
     title = needsResource
       ? `${pending.def.name}: 獲得するリソースを選んでください`

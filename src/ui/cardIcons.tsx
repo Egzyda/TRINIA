@@ -31,12 +31,14 @@ import {
   GiPowerGenerator,
   GiPrayer,
   GiRegeneration,
+  GiRuneStone,
   GiScrollUnfurled,
   GiShieldBash,
   GiSwordman,
   GiSwordsPower,
   GiTimeBomb,
   GiTimeTrap,
+  GiWitchFlight,
   GiWizardStaff,
 } from 'react-icons/gi';
 
@@ -64,12 +66,14 @@ const ICONS: Record<string, IconComponent> = {
   GiPowerGenerator,
   GiPrayer,
   GiRegeneration,
+  GiRuneStone,
   GiScrollUnfurled,
   GiShieldBash,
   GiSwordman,
   GiSwordsPower,
   GiTimeBomb,
   GiTimeTrap,
+  GiWitchFlight,
   GiWizardStaff,
 };
 

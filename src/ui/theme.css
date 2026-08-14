@@ -162,6 +162,68 @@ button {
 /* ホーム画面（仕様書 3.1）                                            */
 /* ------------------------------------------------------------------ */
 
+.home-screen {
+  position: relative;
+  isolation: isolate;
+}
+
+/* 背景イラストは画面いっぱいに敷き、下端を基準に配置する */
+.home-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+}
+
+/*
+ * 文字とボタンの可読性を確保するための覆い。
+ * 一律に暗くするとイラストが死ぬので、
+ * タイトルとメニューが乗る上下だけを強めに落とし、中央の見せ場は残している。
+ */
+.home-bg-veil {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(8, 11, 17, 0.88) 0%,
+      rgba(8, 11, 17, 0.55) 26%,
+      rgba(8, 11, 17, 0.45) 50%,
+      rgba(8, 11, 17, 0.82) 78%,
+      rgba(8, 11, 17, 0.95) 100%
+    ),
+    rgba(8, 11, 17, 0.32);
+}
+
+.home-screen .menu-card {
+  /* 背景が透けるとカードの縁が曖昧になるので、半透明+ぼかしで浮かせる */
+  background: rgba(20, 25, 34, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-color: rgba(90, 169, 255, 0.22);
+}
+
+.home-screen .menu-card:active {
+  background: rgba(28, 35, 49, 0.85);
+}
+
+.home-screen .menu-card .mc-icon {
+  background: rgba(11, 14, 20, 0.7);
+}
+
+.home-screen .home-title .sub {
+  color: #b9c6d8;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* 背景イラストの上でも属性3色のグラデーションが沈まないよう影で持ち上げる */
+.home-screen .home-title .logo {
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.85));
+}
+
 .home {
   padding: 24px 18px calc(24px + var(--safe-bottom));
   display: flex;
