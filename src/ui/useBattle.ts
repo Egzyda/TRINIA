@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createGame } from '../core/gameState';
 import { applyAction } from '../core/mainPhaseEngine';
 import { decideAction, makeAi, type AiContext, type Difficulty } from '../ai';
+import { rulesForMode, type MatchModeId } from '../core/rules';
 import type { GameAction, GameState, PlayerId } from '../core/types';
 
 export interface BattleConfig {
@@ -22,6 +23,8 @@ export interface BattleConfig {
   seed: number;
   /** 人間が操作する側 */
   mySide: PlayerId;
+  /** 対局モード（拠点HP・毎ターン付与pt・競り上限が変わる） */
+  mode: MatchModeId;
 }
 
 /** AIの1手ごとの待ち時間(ms)。速すぎると盤面の変化が追えない */
@@ -51,8 +54,16 @@ export function useBattle(config: BattleConfig): Battle {
             { name: config.foeName, deck: config.foeDeck },
             { name: config.myName, deck: config.myDeck },
           ];
-    return createGame(setups[0], setups[1], config.seed);
-  }, [config.mySide, config.myName, config.myDeck, config.foeName, config.foeDeck, config.seed]);
+    return createGame(setups[0], setups[1], config.seed, rulesForMode(config.mode));
+  }, [
+    config.mySide,
+    config.myName,
+    config.myDeck,
+    config.foeName,
+    config.foeDeck,
+    config.seed,
+    config.mode,
+  ]);
 
   const [state, setState] = useState<GameState>(makeInitial);
   const [error, setError] = useState<string | null>(null);

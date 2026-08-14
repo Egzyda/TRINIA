@@ -97,6 +97,57 @@ describe('魔力系', () => {
   });
 });
 
+describe('魔力ユニット（召喚時誘発）', () => {
+  it('符術の守り手は召喚時に1枚引く', () => {
+    const s = board({
+      hands: { 0: ['mana_rune_warden'] },
+      resources: { 0: { mana: 2 } },
+    });
+    const r = applyAction(s, { type: 'playCard', uid: handUid(s, P0, 'mana_rune_warden') });
+    expect(r.ok).toBe(true);
+    expect(r.state.players[0].units.map((u) => u.defId)).toEqual(['mana_rune_warden']);
+    // 手札から1枚出して1枚引くので、差し引き0枚
+    expect(r.state.players[0].hand).toHaveLength(1);
+  });
+
+  it('幻影の使い手は召喚時に敵ユニットを凍結する', () => {
+    const s = board({
+      hands: { 0: ['mana_illusionist'] },
+      resources: { 0: { mana: 4 } },
+      units: { 1: ['fund_light_attacker'] },
+    });
+    const target = unitUid(s, P1, 'fund_light_attacker');
+    const r = applyAction(s, {
+      type: 'playCard',
+      uid: handUid(s, P0, 'mana_illusionist'),
+      targets: [{ kind: 'unit', uid: target }],
+    });
+    expect(r.ok).toBe(true);
+    expect(r.state.players[1].units[0].frozenUntilTurn).toBe(s.turn + 1);
+  });
+
+  it('召喚時誘発はスペルではないので【魔法耐性】を貫通する', () => {
+    const s = board({
+      hands: { 0: ['mana_illusionist'] },
+      resources: { 0: { mana: 4 } },
+      units: { 1: ['aether_immune_beast'] },
+    });
+    const r = applyAction(s, {
+      type: 'playCard',
+      uid: handUid(s, P0, 'mana_illusionist'),
+      targets: [{ kind: 'unit', uid: unitUid(s, P1, 'aether_immune_beast') }],
+    });
+    expect(r.ok).toBe(true);
+    expect(r.state.players[1].units[0].frozenUntilTurn).toBe(s.turn + 1);
+  });
+
+  it('対象がいない場合は幻影の使い手を出せない', () => {
+    const s = board({ hands: { 0: ['mana_illusionist'] }, resources: { 0: { mana: 4 } } });
+    const r = applyAction(s, { type: 'playCard', uid: handUid(s, P0, 'mana_illusionist') });
+    expect(r.ok).toBe(false);
+  });
+});
+
 describe('スタックと打ち消し', () => {
   it('相手が打ち消しを構えているとスペルは応答フェイズに入る', () => {
     const s = board({

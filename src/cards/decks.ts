@@ -40,20 +40,18 @@ export const DECK_PRESETS: DeckPreset[] = [
   {
     id: 'control_mana',
     name: '魔導統制（コントロール）',
-    description: '除去で盤面を捌きつつ壁で受け、追撃の魔導士とバーンで削り切る。',
+    description: '除去と妨害で盤面を捌き、追撃の魔導士とバーンで削り切る単色構築。',
     faction: 'mana',
-    // 魔力属性のユニットは追撃の魔導士1種しかないため、
-    // 受けに回るための壁を資金から少量スプラッシュしている。
     cards: [
       ...x('mana_flame_bolt', 2),
       ...x('mana_inferno', 2),
       ...x('mana_freeze', 2),
       ...x('mana_counter', 2),
       ...x('mana_pursuit_mage', 2),
+      ...x('mana_rune_warden', 2),
+      ...x('mana_illusionist', 2),
       ...x('mana_great_wisdom', 2),
       ...x('mana_crystal', 2),
-      ...x('fund_heavy_guard', 2),
-      ...x('hybrid_alchemy', 2),
       ...x('hybrid_sabotage', 2),
     ],
   },

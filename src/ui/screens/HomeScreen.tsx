@@ -3,6 +3,7 @@
  * ソロプレイ / 対戦プレイ / デッキ編集 / チュートリアル
  */
 import { BookOpen, Bot, Layers, Users } from 'lucide-react';
+import bgHome from '../../../img/bg_home.jpg';
 
 export type Screen = 'home' | 'solo' | 'battle' | 'room' | 'deck' | 'tutorial';
 
@@ -39,7 +40,10 @@ const MENU: Array<{ screen: Screen; title: string; desc: string; icon: React.Rea
 
 export function HomeScreen({ onNavigate }: Props) {
   return (
-    <div className="screen">
+    <div className="screen home-screen">
+      {/* 背景イラスト。読みやすさのため上から暗いグラデーションを重ねる */}
+      <div className="home-bg" style={{ backgroundImage: `url(${bgHome})` }} aria-hidden="true" />
+      <div className="home-bg-veil" aria-hidden="true" />
       <div className="screen-scroll">
         <div className="home">
           <div className="home-title">

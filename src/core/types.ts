@@ -1,3 +1,5 @@
+import type { RuleSet } from './rules';
+
 /**
  * TRINIA - コア型定義
  *
@@ -121,7 +123,13 @@ export interface CardDef {
   image_path: string;
   /** Game-icons.net 由来のアイコン名 (react-icons/gi) */
   icon: string;
+  /** スペルの効果 */
   effects?: CardEffect[];
+  /**
+   * ユニット・施設が場に出たときの効果（召喚時誘発）。
+   * スペルではないので【魔法耐性】を貫通する。
+   */
+  onSummon?: CardEffect[];
   passives?: CardPassive[];
   activated?: CardActivated;
   triggers?: CardTrigger[];
@@ -233,6 +241,8 @@ export type TargetRef =
   | { kind: 'none' };
 
 export interface GameState {
+  /** この対局に適用されるルールセット（対局モードで変わる） */
+  rules: RuleSet;
   phase: Phase;
   /** 手番プレイヤー */
   active: PlayerId;

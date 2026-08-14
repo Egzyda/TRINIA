@@ -10,7 +10,6 @@
  * 「ゲーム開始時の運要素を極小化する」という設計思想の中核なので、
  * 判定はサーバ（Cloud Functions / Workers）でも同じコードを使えるよう純粋関数にしている。
  */
-import { RULES } from './rules';
 import { nextInt } from './rng';
 import { drawCard, log } from './gameState';
 import type { GameState, PlayerId, ResourceKind } from './types';
@@ -23,8 +22,8 @@ export interface AuctionOutcome {
   paidHp: number;
 }
 
-export function isValidBid(amount: number): boolean {
-  return Number.isInteger(amount) && amount >= 0 && amount <= RULES.MAX_BID;
+export function isValidBid(state: GameState, amount: number): boolean {
+  return Number.isInteger(amount) && amount >= 0 && amount <= state.rules.MAX_BID;
 }
 
 /** 両者の提示が揃ったか */
@@ -58,14 +57,14 @@ export function resolveAuction(state: GameState, bonusResource: ResourceKind = '
 
   // 先攻側のみ提示HPを支払う。後攻側は満タンのまま。
   const paidHp = tie ? 0 : firstPlayer.bid;
-  firstPlayer.baseHp = RULES.BASE_HP - paidHp;
-  secondPlayer.baseHp = RULES.BASE_HP;
+  firstPlayer.baseHp = state.rules.BASE_HP - paidHp;
+  secondPlayer.baseHp = state.rules.BASE_HP;
 
   // 後攻補正。既定は仕様書どおり同点時のみ（先攻の価値はオークションで支払わせる）
-  const bonus = tie || RULES.SECOND_PLAYER_BONUS_ALWAYS ? RULES.SECOND_PLAYER_BONUS : 0;
+  const bonus = tie || state.rules.SECOND_PLAYER_BONUS_ALWAYS ? state.rules.SECOND_PLAYER_BONUS : 0;
   if (bonus > 0) secondPlayer.resources[bonusResource] += bonus;
-  if (tie || RULES.SECOND_PLAYER_BONUS_ALWAYS) {
-    for (let i = 0; i < RULES.SECOND_PLAYER_BONUS_CARDS; i++) drawCard(state, second);
+  if (tie || state.rules.SECOND_PLAYER_BONUS_ALWAYS) {
+    for (let i = 0; i < state.rules.SECOND_PLAYER_BONUS_CARDS; i++) drawCard(state, second);
   }
 
   if (tie) {

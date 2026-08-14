@@ -4,7 +4,14 @@
 import { describe, expect, it } from 'vitest';
 import { createGame, opponentOf } from '../src/core/gameState';
 import { applyAction } from '../src/core/mainPhaseEngine';
-import { configureRules, resetRules, RULES, validateDeck } from '../src/core/rules';
+import {
+  configureRules,
+  MATCH_MODES,
+  resetRules,
+  RULES,
+  rulesForMode,
+  validateDeck,
+} from '../src/core/rules';
 import { DECK_PRESETS, validatePresets } from '../src/cards/decks';
 import { ALL_CARDS, validateMaster } from '../src/cards/cardFactory';
 import type { GameState } from '../src/core/types';
@@ -18,8 +25,15 @@ function startedGame(bid0 = 3, bid1 = 1, seed = 42): GameState {
 }
 
 describe('マスターデータ', () => {
-  it('カードは28種そろっている', () => {
-    expect(ALL_CARDS).toHaveLength(28);
+  it('ベース28種 + 追加の魔力ユニット2種がそろっている', () => {
+    expect(ALL_CARDS).toHaveLength(30);
+    // 魔力属性が盤面を作れるよう、ユニットを3種まで増やしてある（docs/BALANCE.md §5.2）
+    const manaUnits = ALL_CARDS.filter((c) => c.faction === 'mana' && c.type === 'unit');
+    expect(manaUnits.map((c) => c.id)).toEqual([
+      'mana_pursuit_mage',
+      'mana_rune_warden',
+      'mana_illusionist',
+    ]);
   });
 
   it('整合性エラーがない', () => {
@@ -116,6 +130,67 @@ describe('オークション（仕様書 2.2）', () => {
     const r = applyAction(s, { type: 'bid', player: 0, amount: RULES.MAX_BID + 1 });
     expect(r.ok).toBe(false);
     expect(s.players[0].bid).toBe(-1);
+  });
+});
+
+describe('対局モード', () => {
+  it('スタンダードは仕様書の拠点HP50・毎ターン2ptを使う', () => {
+    const r = rulesForMode('standard');
+    expect(r.BASE_HP).toBe(50);
+    expect(r.FREE_POINTS).toBe(2);
+  });
+
+  it('クイックは拠点HPを下げ、毎ターンの付与ptを増やして加速する', () => {
+    const q = rulesForMode('quick');
+    const s = rulesForMode('standard');
+    expect(q.BASE_HP).toBeLessThan(s.BASE_HP);
+    // HPを削るだけだとアグロ一強になるため、付与ptを増やして展開も速くしている
+    expect(q.FREE_POINTS).toBeGreaterThan(s.FREE_POINTS);
+  });
+
+  it('競り上限は拠点HPに連動する（先攻権の価値がHPに比例するため）', () => {
+    for (const mode of MATCH_MODES) {
+      const r = rulesForMode(mode.id);
+      // 実測した均衡落札額は拠点HPの約4割。上限はそれをやや上回る位置に置く
+      expect(r.MAX_BID).toBeGreaterThan(r.BASE_HP * 0.4);
+      expect(r.MAX_BID).toBeLessThan(r.BASE_HP * 0.6);
+    }
+  });
+
+  it('モードのルールは対局状態に取り込まれ、engineがそれを参照する', () => {
+    const [a, b] = DECK_PRESETS;
+    const quick = createGame(
+      { name: 'A', deck: a.cards },
+      { name: 'B', deck: b.cards },
+      1,
+      rulesForMode('quick'),
+    );
+    expect(quick.rules.BASE_HP).toBe(rulesForMode('quick').BASE_HP);
+    expect(quick.players[0].baseHp).toBe(rulesForMode('quick').BASE_HP);
+
+    // 上限を超える提示はモードの上限で弾かれる
+    expect(applyAction(quick, { type: 'bid', player: 0, amount: quick.rules.MAX_BID + 1 }).ok).toBe(
+      false,
+    );
+    expect(applyAction(quick, { type: 'bid', player: 0, amount: quick.rules.MAX_BID }).ok).toBe(true);
+  });
+
+  it('クイックの分配はそのモードのpt数をちょうど使い切る必要がある', () => {
+    const [a, b] = DECK_PRESETS;
+    let s = createGame(
+      { name: 'A', deck: a.cards },
+      { name: 'B', deck: b.cards },
+      7,
+      rulesForMode('quick'),
+    );
+    s = applyAction(s, { type: 'bid', player: 0, amount: 5 }).state;
+    s = applyAction(s, { type: 'bid', player: 1, amount: 1 }).state;
+    expect(s.phase).toBe('allocate');
+    // スタンダードの2ptでは足りない
+    expect(applyAction(s, { type: 'allocate', fund: 2, mana: 0, aether: 0, draw: 0 }).ok).toBe(false);
+    const r = applyAction(s, { type: 'allocate', fund: 3, mana: 0, aether: 0, draw: 0 });
+    expect(r.ok).toBe(true);
+    expect(r.state.players[0].resources.fund).toBe(3);
   });
 });
 

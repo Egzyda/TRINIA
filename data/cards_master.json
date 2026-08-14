@@ -1,7 +1,7 @@
 {
   "$schema": "./cards_master.schema.json",
   "version": "2.1.0",
-  "balanceRevision": 3,
+  "balanceRevision": 4,
   "cards": [
     {
       "id": "fund_light_attacker",
@@ -656,6 +656,54 @@
         {
           "kind": "countdownWin",
           "turns": 5
+        }
+      ]
+    },
+    {
+      "id": "mana_rune_warden",
+      "no": 29,
+      "name": "符術の守り手",
+      "type": "unit",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 2,
+        "aether": 0
+      },
+      "attack": 1,
+      "hp": 5,
+      "keywords": [],
+      "text": "召喚時、カードを1枚引く。",
+      "image_path": "assets/cards/mana_rune_warden.png",
+      "icon": "GiRuneStone",
+      "onSummon": [
+        {
+          "kind": "draw",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "mana_illusionist",
+      "no": 30,
+      "name": "幻影の使い手",
+      "type": "unit",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 4,
+        "aether": 0
+      },
+      "attack": 3,
+      "hp": 4,
+      "keywords": [],
+      "text": "召喚時、敵ユニット1体を凍結する（スペルではないため魔法耐性を貫通する）。",
+      "image_path": "assets/cards/mana_illusionist.png",
+      "icon": "GiWitchFlight",
+      "onSummon": [
+        {
+          "kind": "freeze",
+          "target": "enemyUnit"
         }
       ]
     }

@@ -17,6 +17,7 @@ import { DECK_PRESETS } from '../src/cards/decks';
 import { playMatch } from '../src/ai/autoplay';
 import { getCard } from '../src/cards/cardFactory';
 import type { Difficulty } from '../src/ai';
+import { rulesForMode, type MatchModeId, type RuleSet } from '../src/core/rules';
 import type { PlayerId } from '../src/core/types';
 
 interface Args {
@@ -27,10 +28,13 @@ interface Args {
   cards: boolean;
   deck?: string;
   seed: number;
+  mode: MatchModeId;
+  /** モードの値を一時的に上書きして比較検証する */
+  overrides: Partial<RuleSet>;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { games: 200, ai: 'normal', cards: false, seed: 12345 };
+  const args: Args = { games: 200, ai: 'normal', cards: false, seed: 12345, mode: 'standard', overrides: {} };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--games') args.games = Number(argv[++i]);
@@ -39,6 +43,10 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--cards') args.cards = true;
     else if (a === '--deck') args.deck = argv[++i];
     else if (a === '--seed') args.seed = Number(argv[++i]);
+    else if (a === '--mode') args.mode = argv[++i] as MatchModeId;
+    else if (a === '--hp') args.overrides.BASE_HP = Number(argv[++i]);
+    else if (a === '--fp') args.overrides.FREE_POINTS = Number(argv[++i]);
+    else if (a === '--bid') args.overrides.MAX_BID = Number(argv[++i]);
   }
   return args;
 }
@@ -78,7 +86,7 @@ function main(): void {
 
   console.log(`\n=== TRINIA バランスシミュレーション ===`);
   console.log(
-    `AI: 先手=${args.aiA ?? args.ai} / 後手=${args.ai} / 各組み合わせ ${args.games} 戦 / seed ${args.seed}\n`,
+    `AI: 先手=${args.aiA ?? args.ai} / 後手=${args.ai} / モード=${args.mode} / 各組み合わせ ${args.games} 戦 / seed ${args.seed}\n`,
   );
 
   const overall = emptyTally();
@@ -93,7 +101,15 @@ function main(): void {
       const t = emptyTally();
       for (let g = 0; g < args.games; g++) {
         const seed = (args.seed + g * 7919) | 0;
-        const r = playMatch({ deckA: a.id, deckB: b.id, aiA: args.aiA ?? args.ai, aiB: args.ai, seed });
+        const r = playMatch({
+          deckA: a.id,
+          deckB: b.id,
+          aiA: args.aiA ?? args.ai,
+          aiB: args.ai,
+          seed,
+          mode: args.mode,
+          rules: { ...rulesForMode(args.mode), ...args.overrides },
+        });
         t.games += 1;
         t.turnsTotal += r.turns;
         t.hpTotal += Math.max(r.finalHp[0], r.finalHp[1]);

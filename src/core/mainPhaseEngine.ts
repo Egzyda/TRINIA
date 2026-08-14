@@ -38,13 +38,13 @@ import {
   tauntUnits,
 } from './gameState';
 import {
+  entryEffects,
   legalTargets,
   requiresTarget,
   resolveEffect,
   targetSpecOf,
   type EffectContext,
 } from './effects';
-import { RULES } from './rules';
 import type {
   ActionResult,
   CardDef,
@@ -106,7 +106,7 @@ function dispatch(state: GameState, action: GameAction): string | undefined {
 
 function doBid(state: GameState, player: PlayerId, amount: number): string | undefined {
   if (state.phase !== 'auction') return 'いまはオークションフェイズではありません';
-  if (!isValidBid(amount)) return `提示HPは0〜${RULES.MAX_BID}の整数です`;
+  if (!isValidBid(state, amount)) return `提示HPは0〜${state.rules.MAX_BID}の整数です`;
   if (state.players[player].bid >= 0) return 'すでに提示済みです';
   state.players[player].bid = amount;
   if (!bothBidsIn(state)) return undefined;
@@ -172,9 +172,9 @@ function doAllocate(
   if (state.phase !== 'allocate') return 'いまは分配フェイズではありません';
   const values = [fund, mana, aether, draw];
   if (values.some((v) => !Number.isInteger(v) || v < 0)) return '分配値は0以上の整数です';
-  const spent = fund + mana + aether + draw * RULES.DRAW_COST;
-  if (spent !== RULES.FREE_POINTS) {
-    return `フリーポイント${RULES.FREE_POINTS}ptをちょうど使い切ってください（現在${spent}pt）`;
+  const spent = fund + mana + aether + draw * state.rules.DRAW_COST;
+  if (spent !== state.rules.FREE_POINTS) {
+    return `フリーポイント${state.rules.FREE_POINTS}ptをちょうど使い切ってください（現在${spent}pt）`;
   }
 
   const p = state.players[state.active];
@@ -228,11 +228,11 @@ function doPlayCard(state: GameState, action: PlayCardAction): string | undefine
   if (!cost) return '不正なコスト選択です';
   if (!canPay(p.resources, cost)) return 'リソースが足りません';
 
-  if (def.type === 'unit' && p.units.length >= RULES.MAX_UNITS) {
-    return `前衛は最大${RULES.MAX_UNITS}体までです`;
+  if (def.type === 'unit' && p.units.length >= state.rules.MAX_UNITS) {
+    return `前衛は最大${state.rules.MAX_UNITS}体までです`;
   }
-  if (def.type === 'facility' && p.facilities.length >= RULES.MAX_FACILITIES) {
-    return `施設は最大${RULES.MAX_FACILITIES}枠までです`;
+  if (def.type === 'facility' && p.facilities.length >= state.rules.MAX_FACILITIES) {
+    return `施設は最大${state.rules.MAX_FACILITIES}枠までです`;
   }
 
   const targetError = validateTargets(state, state.active, def, action.targets ?? []);
@@ -250,6 +250,7 @@ function doPlayCard(state: GameState, action: PlayCardAction): string | undefine
   if (def.type === 'unit') {
     summonUnit(state, state.active, def.id);
     log(state, state.active, `${def.name} を召喚した（召喚酔いなし）。`);
+    resolveEntryEffects(state, def, action);
     checkWinCondition(state);
     return undefined;
   }
@@ -257,6 +258,8 @@ function doPlayCard(state: GameState, action: PlayCardAction): string | undefine
   if (def.type === 'facility') {
     buildFacility(state, state.active, def.id);
     log(state, state.active, `${def.name} を建設した。`);
+    resolveEntryEffects(state, def, action);
+    checkWinCondition(state);
     return undefined;
   }
 
@@ -278,6 +281,26 @@ function doPlayCard(state: GameState, action: PlayCardAction): string | undefine
 
   openResponseWindowOrResolve(state, opponentOf(state.active));
   return undefined;
+}
+
+/**
+ * ユニット・施設の召喚時誘発を解決する。
+ * スペルではないのでスタックに乗らず、打ち消しの対象にもならない。
+ */
+function resolveEntryEffects(state: GameState, def: CardDef, action: PlayCardAction): void {
+  const effects = def.onSummon ?? [];
+  if (effects.length === 0) return;
+  const ctx: EffectContext = {
+    state,
+    controller: state.active,
+    sourceDefId: def.id,
+    targets: action.targets ?? [],
+    targetCursor: { i: 0 },
+    chosenResource: action.chosenResource,
+    isSpell: false,
+  };
+  for (const effect of effects) resolveEffect(ctx, effect);
+  cleanupDestroyed(state);
 }
 
 /** 【追撃の魔導士】など「自分がスペルを発動するたび」トリガー */
@@ -308,7 +331,7 @@ function validateTargets(
   def: CardDef,
   targets: TargetRef[],
 ): string | undefined {
-  const needed = (def.effects ?? []).filter(requiresTarget);
+  const needed = entryEffects(def).filter(requiresTarget);
   if (needed.length === 0) return undefined;
   if (targets.length < needed.length) return '対象を指定してください';
   for (let i = 0; i < needed.length; i++) {
@@ -606,7 +629,7 @@ function doEndTurn(state: GameState): string | undefined {
 /** 手札が上限を超えていれば捨て札待ちへ、そうでなければ次のターンへ */
 function finishTurnOrDiscard(state: GameState): void {
   const p = state.players[state.active];
-  if (p.hand.length > RULES.HAND_LIMIT) {
+  if (p.hand.length > state.rules.HAND_LIMIT) {
     state.phase = 'discard';
     state.priority = p.id;
     return;
@@ -617,7 +640,7 @@ function finishTurnOrDiscard(state: GameState): void {
 function doDiscard(state: GameState, uids: string[]): string | undefined {
   if (state.phase !== 'discard') return 'いまは捨て札フェイズではありません';
   const p = state.players[state.active];
-  const need = p.hand.length - RULES.HAND_LIMIT;
+  const need = p.hand.length - state.rules.HAND_LIMIT;
   if (uids.length !== need) return `ちょうど${need}枚捨ててください`;
   if (new Set(uids).size !== uids.length) return '同じカードを重複指定しています';
   for (const uid of uids) {
@@ -637,7 +660,7 @@ function endTurn(state: GameState): void {
   checkWinCondition(state);
   if (state.winner !== null) return;
 
-  if (state.turn >= RULES.TURN_LIMIT) {
+  if (state.turn >= state.rules.TURN_LIMIT) {
     // 安全弁: 拠点HPが多い側の勝ち
     const [a, b] = state.players;
     if (a.baseHp === b.baseHp) {
@@ -669,15 +692,15 @@ export function playableCards(state: GameState, playerId: PlayerId): PlayableInf
   const out: PlayableInfo[] = [];
   for (const card of p.hand) {
     const def = getCard(card.defId);
-    if (def.type === 'unit' && p.units.length >= RULES.MAX_UNITS) continue;
-    if (def.type === 'facility' && p.facilities.length >= RULES.MAX_FACILITIES) continue;
+    if (def.type === 'unit' && p.units.length >= state.rules.MAX_UNITS) continue;
+    if (def.type === 'facility' && p.facilities.length >= state.rules.MAX_FACILITIES) continue;
     // 打ち消しは能動的にプレイしても意味がないので、メインフェイズの候補から外す
     if (def.keywords.includes('counter')) continue;
     const options = costOptions(def);
     for (let i = 0; i < options.length; i++) {
       if (!canPay(p.resources, options[i])) continue;
       // 対象が必要なのに対象が存在しないカードは打てない
-      const needsTarget = (def.effects ?? []).filter(requiresTarget);
+      const needsTarget = entryEffects(def).filter(requiresTarget);
       const hasAllTargets = needsTarget.every(
         (e) => legalTargets(state, playerId, targetSpecOf(e), def.type === 'spell').length > 0,
       );

@@ -1,12 +1,13 @@
 /**
- * TRINIA - ルール定数
+ * TRINIA - ルール定数と対局モード
  *
  * 仕様書 2.1 のパラメータを一箇所に集約する。
  * バランス調整はここと data/cards_master.json のみを触れば完結する。
  *
- * 値は書き換え可能にしてある（configureRules）。
- * これはバランス検証ツールが「HP40にしたらどうなるか」を
- * コードを書き換えずに測れるようにするため。実行時のゲームは既定値で動く。
+ * ルールセットは対局ごとに `GameState.rules` として保持する。
+ * これにより「短時間モード」のようなルール違いの卓を、
+ * グローバル状態を書き換えずに同時に走らせられる
+ * （AIの探索が別ルールの盤面を汚さない／オンライン対戦で卓ごとに合意できる）。
  */
 export interface RuleSet {
   /** 拠点HP初期値 */
@@ -33,7 +34,7 @@ export interface RuleSet {
    * 仕様書 2.2 は「0〜10点以上」と表記していたが、実測した先攻権の価値は
    * 拠点HP 20〜22点相当だった（tools/auction.ts）。上限10では曲線の平坦部に
    * 収まってしまい「全員が上限を積んでも先攻が6割勝つ」＝競りが機能しない。
-   * 上限を25に広げることで、均衡落札額が範囲の中央付近に来て競りが成立する。
+   * 上限を拠点HPの半分程度まで広げることで、均衡落札額が範囲の中央付近に来る。
    */
   MAX_BID: number;
   /** 後攻プレイヤーが得る初期リソースpt（仕様書 2.2 の同点ボーナス） */
@@ -42,8 +43,7 @@ export interface RuleSet {
    * 後攻ボーナスを常時付与するか。
    *
    * false（既定・仕様書どおり）: 同点時のみ付与。先攻の価値はオークションで支払わせる。
-   * true: 毎回付与。MAX_BID を10のまま据え置きたい場合の代替案で、
-   *       実測では先攻勝率が63%→49%まで下がり、競りをほぼ使わずに手番差が解消する。
+   * true: 毎回付与。MAX_BID を狭く保ちたい場合の代替案。
    */
   SECOND_PLAYER_BONUS_ALWAYS: boolean;
   /** 後攻プレイヤーが追加で引く初期手札（さらに細かく調整したい場合の予備の摘み） */
@@ -69,9 +69,13 @@ export const DEFAULT_RULES: Readonly<RuleSet> = {
   TURN_LIMIT: 200,
 };
 
+/**
+ * デッキ構築や画面表示など「特定の対局に属さない」場面で参照する既定値。
+ * 対局中のルールは必ず `GameState.rules` を見ること。
+ */
 export const RULES: RuleSet = { ...DEFAULT_RULES };
 
-/** 検証ツール用。ゲーム本体は既定値のまま動く */
+/** 検証ツール用に既定値を書き換える。ゲーム本体は触らない */
 export function configureRules(partial: Partial<RuleSet>): void {
   Object.assign(RULES, partial);
 }
@@ -80,7 +84,65 @@ export function resetRules(): void {
   Object.assign(RULES, DEFAULT_RULES);
 }
 
-/** デッキ構築が正当かどうかを検証する */
+// ---------------------------------------------------------------------------
+// 対局モード
+// ---------------------------------------------------------------------------
+
+export type MatchModeId = 'quick' | 'standard';
+
+export interface MatchMode {
+  id: MatchModeId;
+  name: string;
+  description: string;
+  /** 目安の所要ターン数（1人あたり） */
+  turnsHint: string;
+  overrides: Partial<RuleSet>;
+}
+
+/**
+ * 対局モードの定義。
+ *
+ * クイックは「拠点HPを削るだけ」ではなく「毎ターンの付与ptを増やして加速する」形にしてある。
+ * HPだけ削るとアグロ一強になり（実測で強襲部隊が75%）、
+ * 施設を建てて戦力を整えるという本作の骨格が機能しなくなるため。
+ * 付与ptを3にすると重いデッキも展開が間に合い、勝率の散らばりが標準ルール並みに収まる。
+ *
+ * オークション上限は拠点HPに連動させる必要がある。
+ * 実測した先攻権の価値は概ね拠点HPの4割前後で、
+ * 上限がそれを少し上回るところに来ると競りが駆け引きとして成立する（docs/BALANCE.md §3）。
+ */
+export const MATCH_MODES: MatchMode[] = [
+  {
+    id: 'standard',
+    name: 'スタンダード',
+    description: '施設を建てて戦力を整える、じっくり型の標準ルール。',
+    turnsHint: '1人あたり約20ターン',
+    overrides: { BASE_HP: 50, FREE_POINTS: 2, MAX_BID: 25 },
+  },
+  {
+    id: 'quick',
+    name: 'クイック',
+    description: '拠点HPが低く、毎ターンのポイントが3ptに増える加速ルール。短期決戦向け。',
+    turnsHint: '1人あたり約14ターン',
+    overrides: { BASE_HP: 30, FREE_POINTS: 3, MAX_BID: 14 },
+  },
+];
+
+export function getMatchMode(id: MatchModeId): MatchMode {
+  const mode = MATCH_MODES.find((m) => m.id === id);
+  if (!mode) throw new Error(`未知の対局モード: ${id}`);
+  return mode;
+}
+
+/** 対局モードから、その卓で使うルールセットを組み立てる */
+export function rulesForMode(id: MatchModeId): RuleSet {
+  return { ...RULES, ...getMatchMode(id).overrides };
+}
+
+// ---------------------------------------------------------------------------
+// デッキ構築の検証（対局に属さないので既定値を使う）
+// ---------------------------------------------------------------------------
+
 export function validateDeck(defIds: string[]): { ok: boolean; error?: string } {
   if (defIds.length !== RULES.DECK_SIZE) {
     return {

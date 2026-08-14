@@ -7,6 +7,7 @@ import { createGame } from '../core/gameState';
 import { applyAction } from '../core/mainPhaseEngine';
 import { decideAction, makeAi, type AiContext, type Difficulty } from './index';
 import { getPreset } from '../cards/decks';
+import { rulesForMode, type MatchModeId, type RuleSet } from '../core/rules';
 import type { GameState, PlayerId } from '../core/types';
 
 export interface AutoplayResult {
@@ -60,6 +61,10 @@ export interface MatchConfig {
   aiA: Difficulty;
   aiB: Difficulty;
   seed: number;
+  /** 対局モード（既定はスタンダード） */
+  mode?: MatchModeId;
+  /** モードのルールを直接上書きする（検証用） */
+  rules?: RuleSet;
 }
 
 /** 1試合を最後まで自動で回す */
@@ -70,6 +75,7 @@ export function playMatch(config: MatchConfig): AutoplayResult {
     { name: `P1(${a.name})`, deck: a.cards },
     { name: `P2(${b.name})`, deck: b.cards },
     config.seed,
+    config.rules ?? rulesForMode(config.mode ?? 'standard'),
   );
   const ais: Record<PlayerId, AiContext> = {
     0: makeAi(config.aiA, config.seed ^ 0x5bf03635),
