@@ -58,7 +58,8 @@ describe('前衛と拠点への攻撃制限', () => {
     const uid = unitUid(s, P0, 'fund_archer');
     const r = applyAction(s, { type: 'attack', attackerUid: uid, target: { kind: 'base', player: P1 } });
     expect(r.ok).toBe(true);
-    expect(r.state.players[1].baseHp).toBe(48);
+    // 弓兵は攻3
+    expect(r.state.players[1].baseHp).toBe(47);
   });
 });
 
@@ -71,8 +72,8 @@ describe('ダメージ計算', () => {
       target: { kind: 'unit', uid: unitUid(s, P1, 'fund_heavy_guard') },
     });
     expect(r.ok).toBe(true);
-    // 軽量アタッカー2/3 vs 重装ガード2/6
-    expect(r.state.players[1].units[0].hp).toBe(4);
+    // 軽量兵2/2 vs 重装兵1/8
+    expect(r.state.players[1].units[0].hp).toBe(6);
     expect(r.state.players[0].units[0].hp).toBe(1);
   });
 
@@ -94,9 +95,31 @@ describe('ダメージ計算', () => {
       attackerUid: unitUid(s, P0, 'hybrid_titan'),
       target: { kind: 'unit', uid: unitUid(s, P1, 'fund_light_attacker') },
     });
-    // 攻9 - HP3 = 6が貫通
+    // 攻9 - HP2 = 7が貫通
     expect(r.state.players[1].units).toHaveLength(0);
-    expect(r.state.players[1].baseHp).toBe(44);
+    expect(r.state.players[1].baseHp).toBe(43);
+  });
+
+  it('【薙ぎ払い】対象以外の敵前衛全員にも同じダメージが入るが、反撃は本来の対象からのみ', () => {
+    const s = board({
+      units: {
+        0: ['fund_berserker'],
+        1: ['fund_light_attacker', 'fund_heavy_guard', 'fund_archer'],
+      },
+    });
+    const r = applyAction(s, {
+      type: 'attack',
+      attackerUid: unitUid(s, P0, 'fund_berserker'),
+      target: { kind: 'unit', uid: unitUid(s, P1, 'fund_heavy_guard') },
+    });
+    expect(r.ok).toBe(true);
+    const byId = (id: string) => r.state.players[1].units.find((u) => u.defId === id);
+    // 乱撃兵(攻3)が全員に3ダメージ。軽量兵(HP2)と弓兵(HP1)は撃破、重装兵(HP8)は5残る
+    expect(byId('fund_light_attacker')).toBeUndefined();
+    expect(byId('fund_archer')).toBeUndefined();
+    expect(byId('fund_heavy_guard')?.hp).toBe(5);
+    // 反撃は本来の対象（重装兵、攻1）からのみ
+    expect(r.state.players[0].units[0].hp).toBe(2);
   });
 
   it('貫通でないユニットは超過ダメージが拠点に抜けない', () => {

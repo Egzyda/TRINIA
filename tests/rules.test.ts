@@ -16,17 +16,25 @@ import { DECK_PRESETS, validatePresets } from '../src/cards/decks';
 import { ALL_CARDS, validateMaster } from '../src/cards/cardFactory';
 import type { GameState } from '../src/core/types';
 
+/** 両者とも引き直しなしでマリガンを終える（オークション以降の検証に集中するため） */
+function skipMulligan(s: GameState): GameState {
+  s = applyAction(s, { type: 'mulligan', player: 0, uids: [] }).state;
+  s = applyAction(s, { type: 'mulligan', player: 1, uids: [] }).state;
+  return s;
+}
+
 function startedGame(bid0 = 3, bid1 = 1, seed = 42): GameState {
   const [a, b] = DECK_PRESETS;
   let s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, seed);
+  s = skipMulligan(s);
   s = applyAction(s, { type: 'bid', player: 0, amount: bid0 }).state;
   s = applyAction(s, { type: 'bid', player: 1, amount: bid1 }).state;
   return s;
 }
 
 describe('マスターデータ', () => {
-  it('ベース28種 + 追加の魔力ユニット2種がそろっている', () => {
-    expect(ALL_CARDS).toHaveLength(30);
+  it('ベース28種 + 追加の魔力ユニット2種 + 上位カード6種がそろっている', () => {
+    expect(ALL_CARDS).toHaveLength(36);
     // 魔力属性が盤面を作れるよう、ユニットを3種まで増やしてある（docs/BALANCE.md §5.2）
     const manaUnits = ALL_CARDS.filter((c) => c.faction === 'mana' && c.type === 'unit');
     expect(manaUnits.map((c) => c.id)).toEqual([
@@ -67,13 +75,66 @@ describe('初期状態', () => {
       expect(p.deck).toHaveLength(RULES.DECK_SIZE - RULES.INITIAL_HAND);
       expect(p.resources).toEqual({ fund: 0, mana: 0, aether: 0 });
     }
-    expect(s.phase).toBe('auction');
+    expect(s.phase).toBe('mulligan');
   });
 
   it('同じシードなら同じ初期手札になる（決定論）', () => {
     const [a, b] = DECK_PRESETS;
     const mk = () => createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 777);
     expect(mk().players[0].hand.map((c) => c.defId)).toEqual(mk().players[0].hand.map((c) => c.defId));
+  });
+});
+
+describe('マリガン', () => {
+  it('指定した枚数だけ山札から引き直す。戻したカードは山札に混ぜる', () => {
+    const [a, b] = DECK_PRESETS;
+    const s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 9);
+    const before = s.players[0].hand.map((c) => c.uid);
+    const returned = before.slice(0, 2);
+
+    const r = applyAction(s, { type: 'mulligan', player: 0, uids: returned });
+    expect(r.ok).toBe(true);
+    const hand = r.state.players[0].hand;
+    expect(hand).toHaveLength(RULES.INITIAL_HAND);
+    // 戻した2枚は手札から消え、新しい2枚に入れ替わっている
+    expect(hand.some((c) => returned.includes(c.uid))).toBe(false);
+    // 戻したカードは山札（引いた分を引いた残り）に混ざっている
+    expect(r.state.players[0].deck).toHaveLength(RULES.DECK_SIZE - RULES.INITIAL_HAND);
+    const deckUids = r.state.players[0].deck.map((c) => c.uid);
+    for (const uid of returned) expect(deckUids).toContain(uid);
+    // 相手はまだ終えていないのでオークションへは進まない
+    expect(r.state.phase).toBe('mulligan');
+  });
+
+  it('0枚指定（引き直しなし）も選べる', () => {
+    const [a, b] = DECK_PRESETS;
+    const s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 9);
+    const before = s.players[0].hand.map((c) => c.uid);
+    const r = applyAction(s, { type: 'mulligan', player: 0, uids: [] });
+    expect(r.ok).toBe(true);
+    expect(r.state.players[0].hand.map((c) => c.uid)).toEqual(before);
+  });
+
+  it('二重に確定はできない', () => {
+    const [a, b] = DECK_PRESETS;
+    let s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 9);
+    s = applyAction(s, { type: 'mulligan', player: 0, uids: [] }).state;
+    const r = applyAction(s, { type: 'mulligan', player: 0, uids: [] });
+    expect(r.ok).toBe(false);
+  });
+
+  it('両者が終えるとオークションへ進む', () => {
+    const [a, b] = DECK_PRESETS;
+    const s = skipMulligan(
+      createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 9),
+    );
+    expect(s.phase).toBe('auction');
+  });
+
+  it('マリガン中は分配やオークションの入力を受け付けない', () => {
+    const [a, b] = DECK_PRESETS;
+    const s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 9);
+    expect(applyAction(s, { type: 'bid', player: 0, amount: 0 }).ok).toBe(false);
   });
 });
 
@@ -126,7 +187,7 @@ describe('オークション（仕様書 2.2）', () => {
 
   it('上限を超える提示は拒否される', () => {
     const [a, b] = DECK_PRESETS;
-    const s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 5);
+    const s = skipMulligan(createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 5));
     const r = applyAction(s, { type: 'bid', player: 0, amount: RULES.MAX_BID + 1 });
     expect(r.ok).toBe(false);
     expect(s.players[0].bid).toBe(-1);
@@ -159,11 +220,8 @@ describe('対局モード', () => {
 
   it('モードのルールは対局状態に取り込まれ、engineがそれを参照する', () => {
     const [a, b] = DECK_PRESETS;
-    const quick = createGame(
-      { name: 'A', deck: a.cards },
-      { name: 'B', deck: b.cards },
-      1,
-      rulesForMode('quick'),
+    const quick = skipMulligan(
+      createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 1, rulesForMode('quick')),
     );
     expect(quick.rules.BASE_HP).toBe(rulesForMode('quick').BASE_HP);
     expect(quick.players[0].baseHp).toBe(rulesForMode('quick').BASE_HP);
@@ -183,6 +241,7 @@ describe('対局モード', () => {
       7,
       rulesForMode('quick'),
     );
+    s = skipMulligan(s);
     s = applyAction(s, { type: 'bid', player: 0, amount: 5 }).state;
     s = applyAction(s, { type: 'bid', player: 1, amount: 1 }).state;
     expect(s.phase).toBe('allocate');

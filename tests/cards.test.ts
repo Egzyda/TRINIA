@@ -18,7 +18,8 @@ describe('資金系', () => {
       units: { 0: ['fund_light_attacker', 'fund_archer'] },
     });
     s = applyAction(s, { type: 'playCard', uid: handUid(s, P0, 'fund_captain') }).state;
-    expect(s.players[0].units.map((u) => u.attack + u.tempAttack)).toEqual([3, 3]);
+    // 軽量兵(攻2)+1=3、弓兵(攻3)+1=4
+    expect(s.players[0].units.map((u) => u.attack + u.tempAttack)).toEqual([3, 4]);
 
     s = applyAction(s, { type: 'endTurn' }).state;
     expect(s.players[0].units.every((u) => u.tempAttack === 0)).toBe(true);
@@ -71,13 +72,14 @@ describe('魔力系', () => {
     const s = board({
       hands: { 0: ['mana_inferno'] },
       resources: { 0: { mana: 4 } },
-      units: { 0: ['fund_archer'], 1: ['fund_archer', 'fund_light_attacker'] },
+      units: { 0: ['fund_archer'], 1: ['fund_archer', 'fund_heavy_guard'] },
     });
     const r = applyAction(s, { type: 'playCard', uid: handUid(s, P0, 'mana_inferno') });
-    // 弓兵(HP2)は死に、軽量アタッカー(HP3)は1残る
-    expect(r.state.players[1].units.map((u) => u.defId)).toEqual(['fund_light_attacker']);
-    expect(r.state.players[1].units[0].hp).toBe(1);
-    expect(r.state.players[0].units[0].hp).toBe(2);
+    // 弓兵(HP1)は死に、重装兵(HP8)は6残る
+    expect(r.state.players[1].units.map((u) => u.defId)).toEqual(['fund_heavy_guard']);
+    expect(r.state.players[1].units[0].hp).toBe(6);
+    // 自軍の弓兵(HP1)は無傷
+    expect(r.state.players[0].units[0].hp).toBe(1);
   });
 
   it('追撃の魔導士はスペル発動ごとに敵拠点へ1ダメージ', () => {

@@ -62,6 +62,10 @@ function playFixed(
   const b = getPreset(deckB);
   let state = createGame({ name: 'P1', deck: a.cards }, { name: 'P2', deck: b.cards }, seed, rules);
 
+  // マリガンは引き直しなしでスキップし、素の先攻価値の測定に専念する
+  state = applyAction(state, { type: 'mulligan', player: 0, uids: [] }).state;
+  state = applyAction(state, { type: 'mulligan', player: 1, uids: [] }).state;
+
   // 先攻/後攻を確実に固定するため、同点にならない提示（paidHp+1 vs 1）で解決させてから、
   // 実際に検証したい支払い額になるよう拠点HPを補正する。
   // ※ MAX_BID は main() 側で測定レンジまで引き上げてある

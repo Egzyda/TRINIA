@@ -58,7 +58,9 @@ export type Keyword =
   /** 貫通: ユニット撃破時の超過ダメージが敵拠点に貫通 */
   | 'trample'
   /** カウンター: 相手ターンの応答ウィンドウで発動できる */
-  | 'counter';
+  | 'counter'
+  /** 薙ぎ払い: ユニットを対象に攻撃したとき、それ以外の敵前衛全員にも同じダメージ（反撃は本来の対象からのみ） */
+  | 'cleave';
 
 /** 効果対象の指定方法 */
 export type TargetSpec =
@@ -202,6 +204,8 @@ export interface PlayerState {
   bid: number;
   /** タイムストップ等で次回以降のメインフェイズをスキップする残り回数 */
   skipMainPhases: number;
+  /** マリガン（引き直し）を決定済みか */
+  mulliganDone: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +213,8 @@ export interface PlayerState {
 // ---------------------------------------------------------------------------
 
 export type Phase =
+  /** マリガン（初期手札の引き直し・両者同時入力） */
+  | 'mulligan'
   /** 先攻・後攻を決めるオークション（両者同時入力） */
   | 'auction'
   /** 2ptの分配待ち */
@@ -277,6 +283,8 @@ export interface LogEntry {
 // ---------------------------------------------------------------------------
 
 export type GameAction =
+  /** マリガン: 引き直したい初期手札を指定する（0枚でもよい） */
+  | { type: 'mulligan'; player: PlayerId; uids: string[] }
   /** オークション: 先攻権に支払うHPを提示 */
   | { type: 'bid'; player: PlayerId; amount: number }
   /** 2pt分配: 各リソースへのチャージ量とドロー枚数（合計が付与pt） */

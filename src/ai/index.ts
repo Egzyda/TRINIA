@@ -9,6 +9,7 @@
  * ソロプレイ画面もバランスシミュレータも同じ関数を叩く。
  */
 import { getCard } from '../cards/cardFactory';
+import { totalCost } from '../cards/baseCard';
 import { applyAction, playableCards } from '../core/mainPhaseEngine';
 import { nextInt } from '../core/rng';
 import { enumerateAllocations, enumerateMainActions } from './actionEnumerator';
@@ -67,6 +68,10 @@ function other(p: PlayerId): PlayerId {
  */
 export function decideAction(state: GameState, me: PlayerId, ctx: AiContext): GameAction | null {
   switch (state.phase) {
+    case 'mulligan':
+      return state.players[me].mulliganDone
+        ? null
+        : { type: 'mulligan', player: me, uids: decideMulligan(state, me, ctx) };
     case 'auction':
       return state.players[me].bid >= 0
         ? null
@@ -82,6 +87,21 @@ export function decideAction(state: GameState, me: PlayerId, ctx: AiContext): Ga
     default:
       return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// マリガン
+// ---------------------------------------------------------------------------
+
+/** 序盤に手が止まりやすい重いカードを送り返す簡易ヒューリスティック */
+function decideMulligan(state: GameState, me: PlayerId, ctx: AiContext): string[] {
+  const hand = state.players[me].hand;
+  if (ctx.difficulty === 'easy') {
+    // EASYはコストを見ず、3枚に1枚くらいの雑さで送り返す
+    return hand.filter(() => rand(ctx, 3) === 0).map((c) => c.uid);
+  }
+  // 序盤2〜3ターンでは合計コスト4以上のカードはまず打てないので送り返す
+  return hand.filter((c) => totalCost(getCard(c.defId).cost) >= 4).map((c) => c.uid);
 }
 
 // ---------------------------------------------------------------------------

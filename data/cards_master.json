@@ -6,7 +6,7 @@
     {
       "id": "fund_light_attacker",
       "no": 1,
-      "name": "軽量アタッカー",
+      "name": "軽量兵",
       "type": "unit",
       "faction": "fund",
       "cost": {
@@ -15,16 +15,16 @@
         "aether": 0
       },
       "attack": 2,
-      "hp": 3,
+      "hp": 2,
       "keywords": [],
-      "text": "基本兵士。",
+      "text": "身軽だが打たれ弱い基本兵士。",
       "image_path": "assets/cards/fund_light_attacker.png",
       "icon": "GiSwordman"
     },
     {
       "id": "fund_heavy_guard",
       "no": 2,
-      "name": "重装ガード",
+      "name": "重装兵",
       "type": "unit",
       "faction": "fund",
       "cost": {
@@ -32,8 +32,8 @@
         "mana": 0,
         "aether": 0
       },
-      "attack": 2,
-      "hp": 6,
+      "attack": 1,
+      "hp": 8,
       "keywords": [
         "taunt"
       ],
@@ -75,8 +75,8 @@
         "mana": 0,
         "aether": 0
       },
-      "attack": 2,
-      "hp": 2,
+      "attack": 3,
+      "hp": 1,
       "keywords": [
         "evasive"
       ],
@@ -181,6 +181,84 @@
       ]
     },
     {
+      "id": "fund_berserker",
+      "no": 31,
+      "name": "乱撃兵",
+      "type": "unit",
+      "faction": "fund",
+      "cost": {
+        "fund": 3,
+        "mana": 0,
+        "aether": 0
+      },
+      "attack": 3,
+      "hp": 3,
+      "keywords": [
+        "cleave"
+      ],
+      "text": "【薙ぎ払い】攻撃時、対象以外の敵前衛全員にも同じ攻撃力のダメージを与える（反撃は本来の対象からのみ）。",
+      "image_path": "assets/cards/fund_berserker.png",
+      "icon": "GiSpinningSword"
+    },
+    {
+      "id": "fund_elite_soldier",
+      "no": 32,
+      "name": "上級兵",
+      "type": "unit",
+      "faction": "fund",
+      "cost": {
+        "fund": 4,
+        "mana": 0,
+        "aether": 0
+      },
+      "attack": 5,
+      "hp": 5,
+      "keywords": [],
+      "text": "特殊な能力は持たないが、純粋に強力な精鋭兵士。",
+      "image_path": "assets/cards/fund_elite_soldier.png",
+      "icon": "GiSwordBrandish"
+    },
+    {
+      "id": "fund_elite_archer",
+      "no": 33,
+      "name": "精鋭弓兵",
+      "type": "unit",
+      "faction": "fund",
+      "cost": {
+        "fund": 4,
+        "mana": 0,
+        "aether": 0
+      },
+      "attack": 4,
+      "hp": 2,
+      "keywords": [
+        "evasive"
+      ],
+      "text": "【すり抜け】敵前衛を無視して拠点・施設を攻撃できる。弓兵の上位版。",
+      "image_path": "assets/cards/fund_elite_archer.png",
+      "icon": "GiTargetArrows"
+    },
+    {
+      "id": "fund_elite_guard",
+      "no": 34,
+      "name": "重装親衛兵",
+      "type": "unit",
+      "faction": "fund",
+      "cost": {
+        "fund": 5,
+        "mana": 0,
+        "aether": 0
+      },
+      "attack": 2,
+      "hp": 10,
+      "keywords": [
+        "taunt"
+      ],
+      "text": "【挑発】相手はこのユニットを優先して攻撃しなければならない。重装兵の上位版。",
+      "image_path": "assets/cards/fund_elite_guard.png",
+      "icon": "GiGuardedTower"
+    },
+    {
       "id": "mana_flame_bolt",
       "no": 9,
       "name": "単体火炎魔法",
@@ -222,6 +300,52 @@
         {
           "kind": "damageAll",
           "amount": 2,
+          "target": "enemyUnits"
+        }
+      ]
+    },
+    {
+      "id": "mana_greater_flame_bolt",
+      "no": 35,
+      "name": "大火炎魔法",
+      "type": "spell",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 4,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "敵ユニット1体、または敵拠点/施設に7ダメージ。単体火炎魔法の上位版。",
+      "image_path": "assets/cards/mana_greater_flame_bolt.png",
+      "icon": "GiFireWave",
+      "effects": [
+        {
+          "kind": "damage",
+          "amount": 7,
+          "target": "anyEnemy"
+        }
+      ]
+    },
+    {
+      "id": "mana_firestorm",
+      "no": 36,
+      "name": "業火の嵐",
+      "type": "spell",
+      "faction": "mana",
+      "cost": {
+        "fund": 0,
+        "mana": 5,
+        "aether": 0
+      },
+      "keywords": [],
+      "text": "敵前衛ユニット全員に4ダメージ。全体範囲魔法の上位版。",
+      "image_path": "assets/cards/mana_firestorm.png",
+      "icon": "GiFireTail",
+      "effects": [
+        {
+          "kind": "damageAll",
+          "amount": 4,
           "target": "enemyUnits"
         }
       ]

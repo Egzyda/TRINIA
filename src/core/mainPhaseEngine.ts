@@ -16,6 +16,7 @@
 import { getCard } from '../cards/cardFactory';
 import { canPay, costOptions, paidResourceOf } from '../cards/baseCard';
 import { bothBidsIn, isValidBid, resolveAuction } from './auctionEngine';
+import { shuffle } from './rng';
 import {
   buildFacility,
   checkWinCondition,
@@ -77,6 +78,8 @@ export function applyAction(prev: GameState, action: GameAction): ActionResult {
 
 function dispatch(state: GameState, action: GameAction): string | undefined {
   switch (action.type) {
+    case 'mulligan':
+      return doMulligan(state, action.player, action.uids);
     case 'bid':
       return doBid(state, action.player, action.amount);
     case 'allocate':
@@ -98,6 +101,48 @@ function dispatch(state: GameState, action: GameAction): string | undefined {
     default:
       return '未知のアクションです';
   }
+}
+
+// ---------------------------------------------------------------------------
+// マリガン（初期手札の引き直し）
+// ---------------------------------------------------------------------------
+
+/**
+ * 引き直したい手札を戻し、残りの山札から同じ枚数を引く。
+ * 戻したカードは（今引いた分を除いた）山札に混ぜてシャッフルし直す。
+ * 「引いた手札をそのまま戻して丸ごと引き直す」方式ではなく、
+ * 残りの山札から即座に補充し、戻したカードは最後にまとめて山へ戻す方式。
+ */
+function doMulligan(state: GameState, player: PlayerId, uids: string[]): string | undefined {
+  if (state.phase !== 'mulligan') return 'いまはマリガンの受付時間ではありません';
+  const p = state.players[player];
+  if (p.mulliganDone) return 'すでにマリガンを終えています';
+  if (new Set(uids).size !== uids.length) return '同じカードを重複指定しています';
+
+  const returning: typeof p.hand = [];
+  for (const uid of uids) {
+    const idx = p.hand.findIndex((c) => c.uid === uid);
+    if (idx < 0) return '手札にないカードが含まれています';
+    returning.push(...p.hand.splice(idx, 1));
+  }
+
+  for (let i = 0; i < returning.length; i++) drawCard(state, player);
+
+  if (returning.length > 0) {
+    const merged = [...p.deck, ...returning];
+    const sh = shuffle(merged, state.rngState);
+    p.deck = sh.items;
+    state.rngState = sh.state;
+  }
+
+  p.mulliganDone = true;
+  log(state, player, `マリガン: ${returning.length}枚を引き直した。`);
+
+  if (state.players.every((pl) => pl.mulliganDone)) {
+    state.phase = 'auction';
+    log(state, null, `両者は先攻権への提示HPを入力してください（0〜${state.rules.MAX_BID}）。`);
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -549,6 +594,17 @@ function doAttack(state: GameState, attackerUid: string, target: TargetRef): str
       const through = damageBase(state, defender.owner, overflow, { ignoreReduction: true });
       if (through > 0) {
         log(state, state.active, `【貫通】超過${through}ダメージが敵拠点へ抜けた。`, 'attack');
+      }
+    }
+
+    // 【薙ぎ払い】対象以外の敵前衛全員にも同じ攻撃力のダメージ。反撃は本来の対象からのみ受ける
+    if (attackerDef.keywords.includes('cleave')) {
+      const others = state.players[defender.owner].units.filter((u) => u.uid !== defender.uid);
+      for (const other of others) {
+        const splash = damageUnit(state, other, power);
+        if (splash > 0) {
+          log(state, state.active, `【薙ぎ払い】${getCard(other.defId).name}にも${splash}ダメージ。`, 'attack');
+        }
       }
     }
   }
