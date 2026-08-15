@@ -50,11 +50,12 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
 
       <div className="setup">
         <SetupRow label="対局モード">
-          <div className="chip-row">
+          {/* 選択肢を等幅に並べると、幅のばらつきで行が崩れず視線が揃う */}
+          <div className="seg" style={{ gridTemplateColumns: `repeat(${MATCH_MODES.length}, 1fr)` }}>
             {MATCH_MODES.map((m) => (
               <button
                 key={m.id}
-                className={`chip-btn ${m.id === mode ? 'active' : ''}`}
+                className={`seg-btn ${m.id === mode ? 'active' : ''}`}
                 onClick={() => setMode(m.id)}
               >
                 {m.name}
@@ -63,40 +64,46 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
           </div>
           <div className="setup-desc">
             拠点HP{selectedMode.overrides.BASE_HP} / 毎ターン{selectedMode.overrides.FREE_POINTS}pt /{' '}
-            {selectedMode.turnsHint} — {selectedMode.description}
+            {selectedMode.turnsHint}
+            <br />
+            {selectedMode.description}
           </div>
         </SetupRow>
 
         <SetupRow label="使用デッキ">
-          <div className="chip-row">
-            {usable.length === 0 && <span className="setup-desc">20枚のデッキがありません</span>}
+          {usable.length === 0 && <span className="setup-desc">20枚のデッキがありません</span>}
+          {/* 自作デッキは名前が長くなりがちなので、横並びにせず縦一列で省略なく見せる */}
+          <div className="pick-list">
             {usable.map((slot, i) => (
               <button
                 key={slot.id}
-                className={`chip-btn ${i === myDeckIdx ? 'active' : ''}`}
+                className={`pick-row ${i === myDeckIdx ? 'active' : ''}`}
                 onClick={() => setMyDeckIdx(i)}
               >
-                {slot.name}
+                <span className="pick-name">{slot.name}</span>
+                <span className="pick-meta">{slot.cards.length}枚</span>
               </button>
             ))}
           </div>
         </SetupRow>
 
         <SetupRow label="相手デッキ">
-          <div className="chip-row">
-            <button
-              className={`chip-btn ${isRandomFoe ? 'active' : ''}`}
-              onClick={() => setFoeDeckId(RANDOM_FOE_ID)}
-            >
-              <Shuffle size={12} /> ランダム
-            </button>
+          <button
+            className={`pick-row ${isRandomFoe ? 'active' : ''}`}
+            onClick={() => setFoeDeckId(RANDOM_FOE_ID)}
+          >
+            <Shuffle size={13} />
+            <span className="pick-name">ランダム</span>
+          </button>
+          <div className="pick-grid">
             {DECK_PRESETS.map((preset) => (
               <button
                 key={preset.id}
-                className={`chip-btn ${preset.id === foeDeckId ? 'active' : ''}`}
+                className={`pick-cell ${preset.id === foeDeckId ? 'active' : ''}`}
                 onClick={() => setFoeDeckId(preset.id)}
               >
-                {preset.name.replace(/（.*/, '')}
+                <span className={`fac-dot fac-${preset.faction}`} />
+                <span className="pick-name">{preset.name.replace(/（.*/, '')}</span>
               </button>
             ))}
           </div>
@@ -106,11 +113,11 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
         </SetupRow>
 
         <SetupRow label="難易度">
-          <div className="chip-row">
+          <div className="seg" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
             {DIFFICULTIES.map((d) => (
               <button
                 key={d}
-                className={`chip-btn ${d === difficulty ? 'active' : ''}`}
+                className={`seg-btn ${d === difficulty ? 'active' : ''}`}
                 onClick={() => setDifficulty(d)}
               >
                 {DIFFICULTY_LABEL[d]}

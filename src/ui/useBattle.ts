@@ -27,8 +27,52 @@ export interface BattleConfig {
   mode: MatchModeId;
 }
 
-/** AIの1手ごとの待ち時間(ms)。速すぎると盤面の変化が追えない */
-const AI_STEP_DELAY = 420;
+/**
+ * AIの1手ごとの待ち時間(ms)。
+ *
+ * 盤面が動く手（召喚・攻撃・起動・打ち消し）は演出を見せたいので長く取り、
+ * 分配やターン終了のような事務的な手は短く流す。
+ * 一律に短くすると「いきなり状況が進んで自分のターンになる」ため。
+ */
+const AI_DELAY_IMPACTFUL = 950;
+const AI_DELAY_ROUTINE = 420;
+
+function stepDelayFor(action: GameAction): number {
+  switch (action.type) {
+    case 'playCard':
+    case 'attack':
+    case 'activate':
+    case 'respond':
+      return AI_DELAY_IMPACTFUL;
+    default:
+      return AI_DELAY_ROUTINE;
+  }
+}
+
+/**
+ * AIが不正手を出したときに進行不能を避けるための代替手。
+ *
+ * これが無いと applyAction 失敗時に前の state をそのまま返すことになり、
+ * 参照が変わらないので React が再レンダーを省略 → state依存のeffectが
+ * 二度と走らず、AIが永久に止まる（tools側の advanceAi と同じ安全弁）。
+ */
+function fallbackActions(state: GameState, me: PlayerId): GameAction[] {
+  const p = state.players[me];
+  switch (state.phase) {
+    case 'auction':
+      return [{ type: 'bid', player: me, amount: 0 }];
+    case 'allocate':
+      return [{ type: 'allocate', fund: state.rules.FREE_POINTS, mana: 0, aether: 0, draw: 0 }];
+    case 'respond':
+      return [{ type: 'pass' }];
+    case 'discard': {
+      const need = Math.max(0, p.hand.length - state.rules.HAND_LIMIT);
+      return [{ type: 'discard', uids: p.hand.slice(0, need).map((c) => c.uid) }];
+    }
+    default:
+      return [{ type: 'endTurn' }];
+  }
+}
 
 export interface Battle {
   state: GameState;
@@ -90,6 +134,15 @@ export function useBattle(config: BattleConfig): Battle {
     setError(null);
   }, [config.difficulty, makeInitial]);
 
+  /*
+   * 進行が止まったときに再試行するためのカウンタ。
+   *
+   * AIの手番はこのeffect → setState → stateが変わって再実行、という連鎖で進む。
+   * 何らかの理由で state が変わらないと連鎖が切れて画面が固まったままになるため、
+   * 見張り役として一定時間動きがなければこれを増やしてeffectを叩き直す。
+   */
+  const [retryTick, setRetryTick] = useState(0);
+
   // AIの手番を1手ずつ進める
   useEffect(() => {
     if (state.winner !== null) {
@@ -102,17 +155,39 @@ export function useBattle(config: BattleConfig): Battle {
       return;
     }
     setAiThinking(true);
+
     const timer = setTimeout(() => {
       setState((prev) => {
-        // タイマー発火までに盤面が動いている可能性があるので取り直す
-        const fresh = decideAction(prev, foeSide, aiRef.current);
-        if (!fresh) return prev;
-        const result = applyAction(prev, fresh);
-        return result.ok ? result.state : prev;
+        // 通常は prev === effectが見た state なので、決めた手をそのまま適用する。
+        // ここで無条件に decideAction を呼び直すと ctx.plan / ctx.rngState を
+        // 1手につき2回消費してしまい、HARDの計画が1手飛ばしで崩れる。
+        let result = applyAction(prev, action);
+
+        // プレイヤーの入力と競合して盤面がずれていた場合だけ決め直す
+        if (!result.ok) {
+          const fresh = decideAction(prev, foeSide, aiRef.current);
+          if (fresh) result = applyAction(prev, fresh);
+        }
+        if (result.ok) return result.state;
+
+        // それでも駄目なときの安全弁。何もせず prev を返すと参照が変わらず
+        // 再レンダーされないため、このeffectが二度と走らずAIが永久に停止する。
+        for (const fb of fallbackActions(prev, foeSide)) {
+          const r = applyAction(prev, fb);
+          if (r.ok) return r.state;
+        }
+        return prev;
       });
-    }, AI_STEP_DELAY);
-    return () => clearTimeout(timer);
-  }, [state, foeSide]);
+    }, stepDelayFor(action));
+
+    // 見張り: 上のタイマーが何らかの理由で成果を出さなくても、必ず再挑戦する
+    const watchdog = setTimeout(() => setRetryTick((n) => n + 1), stepDelayFor(action) + 6000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(watchdog);
+    };
+  }, [state, foeSide, retryTick]);
 
   return useMemo(
     () => ({
