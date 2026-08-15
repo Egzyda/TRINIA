@@ -33,8 +33,8 @@ function startedGame(bid0 = 3, bid1 = 1, seed = 42): GameState {
 }
 
 describe('マスターデータ', () => {
-  it('ベース28種 + 追加の魔力ユニット2種 + 上位カード6種がそろっている', () => {
-    expect(ALL_CARDS).toHaveLength(36);
+  it('ベース28種 + 追加の魔力ユニット2種 + 上位カード6種 + 次元の番人がそろっている', () => {
+    expect(ALL_CARDS).toHaveLength(37);
     // 魔力属性が盤面を作れるよう、ユニットを3種まで増やしてある（docs/BALANCE.md §5.2）
     const manaUnits = ALL_CARDS.filter((c) => c.faction === 'mana' && c.type === 'unit');
     expect(manaUnits.map((c) => c.id)).toEqual([
