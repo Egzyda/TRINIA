@@ -9,7 +9,7 @@
  *
  * 操作要素は下1/3に集約し、ターン終了は右下の親指位置に置く。
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, Heart, Minus, Plus, ScrollText, Swords, X } from 'lucide-react';
 import { CardSheet, FacilityChip, HandCard, ResourceIcon, UnitChip } from '../components/pieces';
 import { useBattle, type BattleConfig } from '../useBattle';
@@ -48,6 +48,15 @@ type Pending =
   | { kind: 'activate'; facilityUid: string; def: CardDef; resource?: ResourceKind }
   | null;
 
+/** オークション解決直後に表示する「どちらが先攻か」バナーの内容 */
+interface FirstBannerInfo {
+  amIFirst: boolean;
+  firstName: string;
+  firstBid: number;
+  secondName: string;
+  secondBid: number;
+}
+
 export function BattleScreen({ config, onExit }: Props) {
   const battle = useBattle(config);
   const { state, dispatch } = battle;
@@ -60,6 +69,7 @@ export function BattleScreen({ config, onExit }: Props) {
   const [discardPick, setDiscardPick] = useState<string[]>([]);
   const [alloc, setAlloc] = useState({ fund: 0, mana: 0, aether: 0, draw: 0 });
   const [bid, setBid] = useState(0);
+  const [firstBanner, setFirstBanner] = useState<FirstBannerInfo | null>(null);
 
   const myPlayer = state.players[me];
   const foePlayer = state.players[foe];
@@ -71,6 +81,29 @@ export function BattleScreen({ config, onExit }: Props) {
     setDiscardPick([]);
     if (state.phase === 'allocate') setAlloc({ fund: 0, mana: 0, aether: 0, draw: 0 });
   }, [state.phase, state.turn]);
+
+  // オークション解決直後（ターン1開始時）に、どちらが先攻かをはっきり示す。
+  // 自動消滅用のタイマーは ref で持ち回り、effectのクリーンアップに乗せない。
+  // 乗せると「ターンが1→2へ進む」だけで（AIが先攻で素早く1ターン目を終えた場合など）
+  // クリーンアップが走ってタイマーがキャンセルされ、バナーが消えなくなるバグを踏んだため。
+  const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    if (state.turn !== 1) return;
+    const first = state.players[state.active];
+    const second = state.players[state.active === 0 ? 1 : 0];
+    setFirstBanner({
+      amIFirst: state.active === me,
+      firstName: first.name,
+      firstBid: first.bid,
+      secondName: second.name,
+      secondBid: second.bid,
+    });
+    clearTimeout(bannerTimeoutRef.current);
+    bannerTimeoutRef.current = setTimeout(() => setFirstBanner(null), 3200);
+    // ターンが1になった瞬間だけ発火させる
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.turn]);
+  useEffect(() => () => clearTimeout(bannerTimeoutRef.current), []);
 
   const playableUids = useMemo(() => {
     if (state.phase !== 'main' || !isMyTurn) return new Set<string>();
@@ -284,6 +317,7 @@ export function BattleScreen({ config, onExit }: Props) {
                     ? tapTarget({ kind: 'facility', uid: f.uid })
                     : setSheet(getCard(f.defId))
                 }
+                onInfo={() => setSheet(getCard(f.defId))}
               />
             );
           })}
@@ -303,6 +337,7 @@ export function BattleScreen({ config, onExit }: Props) {
                     ? tapTarget({ kind: 'unit', uid: u.uid })
                     : setSheet(getCard(u.defId))
                 }
+                onInfo={() => setSheet(getCard(u.defId))}
               />
             );
           })}
@@ -340,6 +375,7 @@ export function BattleScreen({ config, onExit }: Props) {
                 state={state}
                 mode={selected ? 'selected' : targetable ? 'targetable' : 'idle'}
                 onTap={() => tapMyUnit(u.uid)}
+                onInfo={() => setSheet(getCard(u.defId))}
               />
             );
           })}
@@ -361,6 +397,7 @@ export function BattleScreen({ config, onExit }: Props) {
                       : 'idle'
                 }
                 onTap={() => tapMyFacility(f.uid)}
+                onInfo={() => setSheet(getCard(f.defId))}
               />
             );
           })}
@@ -478,7 +515,7 @@ export function BattleScreen({ config, onExit }: Props) {
                   discardPick.includes(card.uid)
                 }
                 onTap={() => tapHandCard(card.uid)}
-                onLongPress={() => setSheet(getCard(card.defId))}
+                onInfo={() => setSheet(getCard(card.defId))}
               />
             ))}
             {myPlayer.hand.length === 0 && (
@@ -505,6 +542,20 @@ export function BattleScreen({ config, onExit }: Props) {
 
       {sheet && <CardSheet def={sheet} onClose={() => setSheet(null)} />}
       {showLog && <LogPanel state={state} onClose={() => setShowLog(false)} />}
+      {firstBanner && (
+        <div className="first-banner" onClick={() => setFirstBanner(null)}>
+          <div className="first-banner-card">
+            <div className={`first-banner-title ${firstBanner.amIFirst ? 'you' : 'foe'}`}>
+              {firstBanner.amIFirst ? 'あなたが先攻です' : '相手が先攻です'}
+            </div>
+            <div className="first-banner-sub">
+              先攻: {firstBanner.firstName}（提示 {firstBanner.firstBid}）
+              <br />
+              後攻: {firstBanner.secondName}（提示 {firstBanner.secondBid}）
+            </div>
+          </div>
+        </div>
+      )}
       {state.winner !== null && (
         <div className="result">
           <div className={`verdict ${state.winner === me ? 'win' : 'lose'}`}>
@@ -610,8 +661,9 @@ function AllocCell({
 
 /**
  * オークションパネル。
- * 仕様書 2.2 の「制限時間5秒の同時暗黙入力」を再現し、
- * 時間切れ時は現在のスライダー値で自動確定する。
+ * 仕様書 2.2 は「制限時間5秒の同時暗黙入力」だが、
+ * 実機では考える間もなく即決を迫られ操作しづらいため時間無制限にしている。
+ * 相手側（AI）は自分の提示を待たずに独自に決めるので、同時入力の性質自体は保たれる。
  */
 function AuctionPanel({
   maxBid,
@@ -626,24 +678,6 @@ function AuctionPanel({
   onChange: (v: number) => void;
   onSubmit: () => void;
 }) {
-  const LIMIT_MS = 5000;
-  const [remain, setRemain] = useState(LIMIT_MS);
-
-  useEffect(() => {
-    const started = Date.now();
-    const id = setInterval(() => {
-      const left = Math.max(0, LIMIT_MS - (Date.now() - started));
-      setRemain(left);
-      if (left === 0) {
-        clearInterval(id);
-        onSubmit();
-      }
-    }, 100);
-    return () => clearInterval(id);
-    // 初回マウント時のみ計測する（依存に onSubmit を入れると毎レンダリングでリセットされる）
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <div className="auction">
       <div className="prompt-title" style={{ textAlign: 'center' }}>
@@ -656,10 +690,7 @@ function AuctionPanel({
       <div className="auction-hint">
         高い方が先攻。支払ったHPだけ減った状態で始まります
         <br />
-        提示すると 拠点HP {baseHp - value} で開始（残り{Math.ceil(remain / 1000)}秒）
-      </div>
-      <div className="auction-timer">
-        <div style={{ width: `${(remain / LIMIT_MS) * 100}%` }} />
+        提示すると 拠点HP {baseHp - value} で開始
       </div>
       <input
         className="auction-slider"

@@ -1,6 +1,7 @@
 /**
  * ソロプレイ設定画面。
  * 使用デッキと難易度を選んで対局を開始する。
+ * チップ選択＋1行説明のみで構成し、スクロールなしで1画面に収める。
  */
 import { useState } from 'react';
 import { ChevronLeft, Play } from 'lucide-react';
@@ -31,6 +32,8 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
   const [mode, setMode] = useState<MatchModeId>('standard');
 
   const myDeck = usable[myDeckIdx];
+  const selectedMode = MATCH_MODES.find((m) => m.id === mode)!;
+  const selectedFoe = DECK_PRESETS.find((p) => p.id === foeDeckId);
 
   return (
     <div className="screen">
@@ -41,108 +44,94 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
         <h1>ソロプレイ</h1>
       </div>
 
-      <div className="screen-scroll">
-        <div className="room">
-          <div>
-            <div className="prompt-title">対局モード</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {MATCH_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  className="menu-card"
-                  style={
-                    m.id === mode
-                      ? { borderColor: 'var(--accent)', background: 'var(--bg-panel-2)' }
-                      : undefined
-                  }
-                  onClick={() => setMode(m.id)}
-                >
-                  <span className="mc-body">
-                    <span className="mc-title">
-                      {m.name}
-                      <span style={{ color: 'var(--text-dim)', fontWeight: 400, fontSize: 11 }}>
-                        {'  '}拠点HP {m.overrides.BASE_HP} / 毎ターン {m.overrides.FREE_POINTS}pt /{' '}
-                        {m.turnsHint}
-                      </span>
-                    </span>
-                    <br />
-                    <span className="mc-desc">{m.description}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
+      <div className="setup">
+        <SetupRow label="対局モード">
+          <div className="chip-row">
+            {MATCH_MODES.map((m) => (
+              <button
+                key={m.id}
+                className={`chip-btn ${m.id === mode ? 'active' : ''}`}
+                onClick={() => setMode(m.id)}
+              >
+                {m.name}
+              </button>
+            ))}
           </div>
-
-          <div>
-            <div className="prompt-title">使用デッキ</div>
-            <div className="deck-tabs" style={{ padding: 0, border: 'none' }}>
-              {usable.map((slot, i) => (
-                <button
-                  key={slot.id}
-                  className={`deck-tab ${i === myDeckIdx ? 'active' : ''}`}
-                  onClick={() => setMyDeckIdx(i)}
-                >
-                  {slot.name}
-                </button>
-              ))}
-            </div>
+          <div className="setup-desc">
+            拠点HP{selectedMode.overrides.BASE_HP} / 毎ターン{selectedMode.overrides.FREE_POINTS}pt /{' '}
+            {selectedMode.turnsHint} — {selectedMode.description}
           </div>
+        </SetupRow>
 
-          <div>
-            <div className="prompt-title">相手デッキ</div>
-            <div className="deck-tabs" style={{ padding: 0, border: 'none' }}>
-              {DECK_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  className={`deck-tab ${preset.id === foeDeckId ? 'active' : ''}`}
-                  onClick={() => setFoeDeckId(preset.id)}
-                >
-                  {preset.name.replace(/（.*/, '')}
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
-              {DECK_PRESETS.find((p) => p.id === foeDeckId)?.description}
-            </div>
+        <SetupRow label="使用デッキ">
+          <div className="chip-row">
+            {usable.length === 0 && <span className="setup-desc">20枚のデッキがありません</span>}
+            {usable.map((slot, i) => (
+              <button
+                key={slot.id}
+                className={`chip-btn ${i === myDeckIdx ? 'active' : ''}`}
+                onClick={() => setMyDeckIdx(i)}
+              >
+                {slot.name}
+              </button>
+            ))}
           </div>
+        </SetupRow>
 
-          <div>
-            <div className="prompt-title">難易度</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {DIFFICULTIES.map((d) => (
-                <button
-                  key={d}
-                  className={`menu-card ${d === difficulty ? '' : ''}`}
-                  style={
-                    d === difficulty
-                      ? { borderColor: 'var(--accent)', background: 'var(--bg-panel-2)' }
-                      : undefined
-                  }
-                  onClick={() => setDifficulty(d)}
-                >
-                  <span className="mc-body">
-                    <span className="mc-title">{DIFFICULTY_LABEL[d]}</span>
-                    <br />
-                    <span className="mc-desc">{DIFFICULTY_DESCRIPTION[d]}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
+        <SetupRow label="相手デッキ">
+          <div className="chip-row">
+            {DECK_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                className={`chip-btn ${preset.id === foeDeckId ? 'active' : ''}`}
+                onClick={() => setFoeDeckId(preset.id)}
+              >
+                {preset.name.replace(/（.*/, '')}
+              </button>
+            ))}
           </div>
+          <div className="setup-desc">{selectedFoe?.description}</div>
+        </SetupRow>
 
-          <button
-            className="btn btn-primary btn-block"
-            disabled={!myDeck}
-            onClick={() =>
-              myDeck &&
-              onStart({ myDeck: myDeck.cards, myName: myDeck.name, foeDeckId, difficulty, mode })
-            }
-          >
-            <Play size={16} /> 対局開始
-          </button>
-          {!myDeck && <div className="notice">20枚のデッキがありません。デッキ編集で作成してください。</div>}
-        </div>
+        <SetupRow label="難易度">
+          <div className="chip-row">
+            {DIFFICULTIES.map((d) => (
+              <button
+                key={d}
+                className={`chip-btn ${d === difficulty ? 'active' : ''}`}
+                onClick={() => setDifficulty(d)}
+              >
+                {DIFFICULTY_LABEL[d]}
+              </button>
+            ))}
+          </div>
+          <div className="setup-desc">{DIFFICULTY_DESCRIPTION[difficulty]}</div>
+        </SetupRow>
+
+        <div style={{ flex: 1 }} />
+
+        {!myDeck && (
+          <div className="notice">20枚のデッキがありません。デッキ編集で作成してください。</div>
+        )}
+        <button
+          className="btn btn-primary btn-block"
+          disabled={!myDeck}
+          onClick={() =>
+            myDeck && onStart({ myDeck: myDeck.cards, myName: myDeck.name, foeDeckId, difficulty, mode })
+          }
+        >
+          <Play size={16} /> 対局開始
+        </button>
       </div>
+    </div>
+  );
+}
+
+function SetupRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="setup-row">
+      <div className="setup-label">{label}</div>
+      {children}
     </div>
   );
 }

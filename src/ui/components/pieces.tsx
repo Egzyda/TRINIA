@@ -1,8 +1,12 @@
 /**
  * バトル画面の構成部品。
  * 手札カード / 場のユニット / 場の施設 / カード詳細シート。
+ *
+ * カード本体をタップすると「プレイ／攻撃対象選択／起動」などの本来の操作を行い、
+ * 隅の情報アイコンをタップすると効果テキストの詳細シートが開く。
+ * （長押しは誤操作しやすく効果確認が面倒という声から、常時タップ可能なアイコンに変更した）
  */
-import { Coins, Droplet, Heart, Sparkles, Swords, X } from 'lucide-react';
+import { Coins, Droplet, Heart, Info, Sparkles, Swords, X } from 'lucide-react';
 import { CardArt } from './CardArt';
 import { formatCost } from '../../cards/baseCard';
 import { getCard } from '../../cards/cardFactory';
@@ -34,6 +38,31 @@ export function ResourceIcon({ kind, size = 12 }: { kind: 'fund' | 'mana' | 'aet
   return <Sparkles size={size} />;
 }
 
+/** 隅に置く情報アイコン。親のタップ操作を奪わないよう伝播を止める */
+function InfoButton({ onInfo, className }: { onInfo: () => void; className: string }) {
+  return (
+    <span
+      className={className}
+      role="button"
+      tabIndex={0}
+      aria-label="カード詳細を見る"
+      onClick={(e) => {
+        e.stopPropagation();
+        onInfo();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.stopPropagation();
+          e.preventDefault();
+          onInfo();
+        }
+      }}
+    >
+      <Info size={11} />
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 手札
 // ---------------------------------------------------------------------------
@@ -43,33 +72,27 @@ interface HandCardProps {
   playable: boolean;
   selected: boolean;
   onTap: () => void;
-  onLongPress: () => void;
+  onInfo: () => void;
 }
 
-export function HandCard({ card, playable, selected, onTap, onLongPress }: HandCardProps) {
+export function HandCard({ card, playable, selected, onTap, onInfo }: HandCardProps) {
   const def = getCard(card.defId);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  const start = () => {
-    timer = setTimeout(onLongPress, 450);
-  };
-  const cancel = () => {
-    if (timer) clearTimeout(timer);
-  };
 
   return (
-    <button
+    <div
       className={`hand-card ${selected ? 'selected' : playable ? 'playable' : 'unplayable'}`}
+      role="button"
+      tabIndex={0}
       onClick={onTap}
-      onPointerDown={start}
-      onPointerUp={cancel}
-      onPointerLeave={cancel}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        onLongPress();
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onTap();
+        }
       }}
     >
       <span className="hc-cost">{formatCost(def.cost)}</span>
+      <InfoButton onInfo={onInfo} className="hc-info" />
       <span className="hc-art">
         <CardArt def={def} size={26} />
       </span>
@@ -80,7 +103,7 @@ export function HandCard({ card, playable, selected, onTap, onLongPress }: HandC
         </span>
       )}
       {def.type === 'facility' && <span className="hc-stats">HP{def.hp}</span>}
-    </button>
+    </div>
   );
 }
 
@@ -93,19 +116,29 @@ interface UnitChipProps {
   state: GameState;
   mode: 'idle' | 'selectable' | 'targetable' | 'selected';
   onTap: () => void;
+  onInfo: () => void;
 }
 
-export function UnitChip({ unit, state, mode, onTap }: UnitChipProps) {
+export function UnitChip({ unit, state, mode, onTap, onInfo }: UnitChipProps) {
   const def = getCard(unit.defId);
   const frozen = unit.frozenUntilTurn !== undefined && state.turn <= unit.frozenUntilTurn;
   const attack = effectiveAttack(unit);
   const buffed = attack > (def.attack ?? 0);
 
   return (
-    <button
+    <div
       className={`chip faction-${def.faction} ${mode} ${unit.hasAttacked ? 'exhausted' : ''}`}
+      role="button"
+      tabIndex={0}
       onClick={onTap}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onTap();
+        }
+      }}
     >
+      <InfoButton onInfo={onInfo} className="chip-info" />
       <span className="chip-badges">
         {frozen && <span className="badge frozen">凍結</span>}
         {def.keywords.includes('taunt') && <span className="badge">挑発</span>}
@@ -124,7 +157,7 @@ export function UnitChip({ unit, state, mode, onTap }: UnitChipProps) {
           <Heart size={9} /> {unit.hp}
         </span>
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -136,14 +169,27 @@ interface FacilityChipProps {
   facility: FacilityInstance;
   mode: 'idle' | 'selectable' | 'targetable' | 'selected';
   onTap: () => void;
+  onInfo: () => void;
 }
 
-export function FacilityChip({ facility, mode, onTap }: FacilityChipProps) {
+export function FacilityChip({ facility, mode, onTap, onInfo }: FacilityChipProps) {
   const def = getCard(facility.defId);
   const countdown = def.passives?.find((p) => p.kind === 'countdownWin');
 
   return (
-    <button className={`chip faction-${def.faction} ${mode}`} onClick={onTap}>
+    <div
+      className={`chip faction-${def.faction} ${mode}`}
+      role="button"
+      tabIndex={0}
+      onClick={onTap}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onTap();
+        }
+      }}
+    >
+      <InfoButton onInfo={onInfo} className="chip-info" />
       <span className="chip-badges">
         {countdown && (
           <span className="badge counter">
@@ -160,12 +206,12 @@ export function FacilityChip({ facility, mode, onTap }: FacilityChipProps) {
           <Heart size={9} /> {facility.hp}
         </span>
       </span>
-    </button>
+    </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// カード詳細（長押しで開くボトムシート）
+// カード詳細（情報アイコンのタップで開くボトムシート）
 // ---------------------------------------------------------------------------
 
 export function CardSheet({ def, onClose }: { def: CardDef; onClose: () => void }) {
