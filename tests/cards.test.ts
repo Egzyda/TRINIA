@@ -41,7 +41,7 @@ describe('資金系', () => {
     ]);
   });
 
-  it('武器庫は資金1で攻撃力を永続+1、ターン1回まで', () => {
+  it('武器庫は資金1で攻撃力とHPを永続+1、ターン1回まで', () => {
     let s = board({
       facilities: { 0: ['fund_armory'] },
       units: { 0: ['fund_light_attacker'] },
@@ -51,6 +51,8 @@ describe('資金系', () => {
     const uid = unitUid(s, P0, 'fund_light_attacker');
     s = applyAction(s, { type: 'activate', facilityUid: fid, target: { kind: 'unit', uid } }).state;
     expect(s.players[0].units[0].attack).toBe(3);
+    expect(s.players[0].units[0].hp).toBe(3);
+    expect(s.players[0].units[0].maxHp).toBe(3);
 
     const second = applyAction(s, { type: 'activate', facilityUid: fid, target: { kind: 'unit', uid } });
     expect(second.ok).toBe(false);

@@ -72,9 +72,9 @@ describe('ダメージ計算', () => {
       target: { kind: 'unit', uid: unitUid(s, P1, 'fund_heavy_guard') },
     });
     expect(r.ok).toBe(true);
-    // 軽量兵2/2 vs 重装兵1/8
+    // 軽量兵2/2 vs 重装兵0/8（攻撃力0なので反撃なし）
     expect(r.state.players[1].units[0].hp).toBe(6);
-    expect(r.state.players[0].units[0].hp).toBe(1);
+    expect(r.state.players[0].units[0].hp).toBe(2);
   });
 
   it('【攻城】は施設へのダメージが2倍になる', () => {
@@ -118,8 +118,8 @@ describe('ダメージ計算', () => {
     expect(byId('fund_light_attacker')).toBeUndefined();
     expect(byId('fund_archer')).toBeUndefined();
     expect(byId('fund_heavy_guard')?.hp).toBe(5);
-    // 反撃は本来の対象（重装兵、攻1）からのみ
-    expect(r.state.players[0].units[0].hp).toBe(2);
+    // 反撃は本来の対象（重装兵、攻0）からのみだが、攻撃力0のため反撃なし
+    expect(r.state.players[0].units[0].hp).toBe(3);
   });
 
   it('貫通でないユニットは超過ダメージが拠点に抜けない', () => {
