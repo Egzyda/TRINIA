@@ -62,7 +62,7 @@ export function createGame(
 ): GameState {
   const state: GameState = {
     rules,
-    phase: 'auction',
+    phase: 'mulligan',
     active: 0,
     priority: 0,
     turn: 0,
@@ -89,7 +89,7 @@ export function createGame(
     for (let i = 0; i < rules.INITIAL_HAND; i++) drawCard(state, player.id);
   }
 
-  log(state, null, `対局開始。両者は先攻権への提示HPを入力してください（0〜${rules.MAX_BID}）。`);
+  log(state, null, '対局開始。初期手札を引き直しますか？（マリガン）');
   return state;
 }
 
@@ -107,6 +107,7 @@ function makePlayer(id: PlayerId, setup: PlayerSetup, rules: RuleSet): PlayerSta
     facilities: [],
     bid: -1,
     skipMainPhases: 0,
+    mulliganDone: false,
   };
 }
 
@@ -421,5 +422,6 @@ function clonePlayer(p: PlayerState): PlayerState {
     facilities: p.facilities.map((f) => ({ ...f })),
     bid: p.bid,
     skipMainPhases: p.skipMainPhases,
+    mulliganDone: p.mulliganDone,
   };
 }

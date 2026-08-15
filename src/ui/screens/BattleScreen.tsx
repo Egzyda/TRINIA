@@ -70,6 +70,7 @@ export function BattleScreen({ config, onExit }: Props) {
   const [handSheetUid, setHandSheetUid] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [discardPick, setDiscardPick] = useState<string[]>([]);
+  const [mulliganPick, setMulliganPick] = useState<string[]>([]);
   const [alloc, setAlloc] = useState({ fund: 0, mana: 0, aether: 0, draw: 0 });
   const [bid, setBid] = useState(0);
   const [firstBanner, setFirstBanner] = useState<FirstBannerInfo | null>(null);
@@ -79,21 +80,25 @@ export function BattleScreen({ config, onExit }: Props) {
   const isMyTurn = state.active === me;
 
   /*
-   * 下部操作エリアの高さを CSS 変数に流す。
+   * 下部操作エリア＋自分のステータスバーの高さを CSS 変数に流す。
    * モーダル（ActionSheet）の背景をこの高さの分だけ手前で止めることで、
-   * 「リソース配分中に手札が見えない」問題を解消する。
+   * 「リソース配分中に手札や現在のリソース数が見えない」問題を解消する。
    * 高さは固定だが、端末のセーフエリア次第で変わるので実測して渡す。
    */
   const screenRef = useRef<HTMLDivElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
+  const myStatusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const control = controlRef.current;
+    const myStatus = myStatusRef.current;
     const screen = screenRef.current;
-    if (!control || !screen) return;
-    const apply = () => screen.style.setProperty('--control-h', `${control.offsetHeight}px`);
+    if (!control || !myStatus || !screen) return;
+    const apply = () =>
+      screen.style.setProperty('--control-h', `${control.offsetHeight + myStatus.offsetHeight}px`);
     apply();
     const ro = new ResizeObserver(apply);
     ro.observe(control);
+    ro.observe(myStatus);
     return () => ro.disconnect();
   }, []);
 
@@ -101,6 +106,7 @@ export function BattleScreen({ config, onExit }: Props) {
   useEffect(() => {
     setPending(null);
     setDiscardPick([]);
+    setMulliganPick([]);
     setHandSheetUid(null);
     if (state.phase === 'allocate') setAlloc({ fund: 0, mana: 0, aether: 0, draw: 0 });
   }, [state.phase, state.turn]);
@@ -321,6 +327,17 @@ export function BattleScreen({ config, onExit }: Props) {
    * シート内のボタン（beginPlayHandCard）に委ねる。
    */
   const tapHandCard = (uid: string) => {
+    if (state.phase === 'mulligan') {
+      if (myPlayer.mulliganDone) {
+        const card = myPlayer.hand.find((c) => c.uid === uid);
+        if (card) setSheet(getCard(card.defId));
+        return;
+      }
+      setMulliganPick((prev) =>
+        prev.includes(uid) ? prev.filter((x) => x !== uid) : [...prev, uid],
+      );
+      return;
+    }
     if (state.phase === 'discard') {
       setDiscardPick((prev) =>
         prev.includes(uid) ? prev.filter((x) => x !== uid) : [...prev, uid],
@@ -484,6 +501,7 @@ export function BattleScreen({ config, onExit }: Props) {
    * 手札はそのまま見えて選択もできる。
    */
   const discardPrompt = state.phase === 'discard' && isMyTurn;
+  const mulliganPrompt = state.phase === 'mulligan' && !myPlayer.mulliganDone;
 
   return (
     <div className="screen battle" ref={screenRef}>
@@ -618,7 +636,12 @@ export function BattleScreen({ config, onExit }: Props) {
         </div>
       </div>
 
-      <StatusBar player={myPlayer} side="me" hit={hitIds.has(`base:${me}`)} />
+      <StatusBar
+        player={myPlayer}
+        side="me"
+        hit={hitIds.has(`base:${me}`)}
+        containerRef={myStatusRef}
+      />
 
       <div className="control-area" ref={controlRef}>
         {/*
@@ -655,9 +678,10 @@ export function BattleScreen({ config, onExit }: Props) {
                 selected={
                   (pending?.kind === 'playCard' && pending.uid === card.uid) ||
                   discardPick.includes(card.uid) ||
+                  mulliganPick.includes(card.uid) ||
                   handSheetUid === card.uid
                 }
-                discarding={discardPrompt}
+                discarding={discardPrompt || mulliganPrompt}
                 onTap={() => tapHandCard(card.uid)}
               />
             ))}
@@ -682,6 +706,30 @@ export function BattleScreen({ config, onExit }: Props) {
           </button>
         </div>
       </div>
+
+      {/* マリガン: 引き直しは下の手札を直接タップして選ぶので、ここには案内だけ出す */}
+      {mulliganPrompt && (
+        <ActionSheet title="初期手札を引き直しますか？（マリガン）">
+          <div className="sheet-text">
+            下の手札から引き直したいカードをタップして選んでください（0枚でもOK）。
+            選んだ枚数だけ山札から新しく引き、戻したカードは山札に混ぜ直します。
+          </div>
+          <div className="discard-count">
+            引き直す枚数 <strong>{mulliganPick.length}</strong> / {myPlayer.hand.length}
+          </div>
+          <button
+            className="btn btn-primary btn-block"
+            onClick={() => dispatch({ type: 'mulligan', player: me, uids: mulliganPick })}
+          >
+            {mulliganPick.length === 0 ? 'この手札で始める' : `${mulliganPick.length}枚を引き直す`}
+          </button>
+        </ActionSheet>
+      )}
+      {state.phase === 'mulligan' && myPlayer.mulliganDone && (
+        <ActionSheet title="引き直し完了">
+          <div className="sheet-text">相手の選択を待っています…</div>
+        </ActionSheet>
+      )}
 
       {/* 盤面タップが不要な選択肢は、盤面を押し縮めない浮き上がりモーダルで出す */}
       {state.phase === 'auction' && myPlayer.bid < 0 && (
@@ -916,13 +964,15 @@ function StatusBar({
   player,
   side,
   hit,
+  containerRef,
 }: {
   player: PlayerState;
   side: 'me' | 'foe';
   hit?: boolean;
+  containerRef?: React.RefObject<HTMLDivElement>;
 }) {
   return (
-    <div className={`status-bar ${side}`}>
+    <div className={`status-bar ${side}`} ref={containerRef}>
       <span className="status-name">{player.name}</span>
       <span className={`hp ${hit ? 'hit-flash' : ''}`}>
         <Heart size={13} />
