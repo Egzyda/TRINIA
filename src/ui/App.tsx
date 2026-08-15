@@ -10,7 +10,8 @@ import { DeckScreen } from './screens/DeckScreen';
 import { RoomScreen } from './screens/RoomScreen';
 import { TutorialScreen } from './screens/TutorialScreen';
 import { loadSlots, saveSlots, type DeckSlot } from './deckStorage';
-import { getPreset } from '../cards/decks';
+import { DECK_PRESETS, getPreset } from '../cards/decks';
+import { RANDOM_FOE_ID } from './screens/SoloSetupScreen';
 import type { BattleConfig } from './useBattle';
 import './theme.css';
 
@@ -38,7 +39,10 @@ export function App() {
           slots={slots}
           onBack={() => setScreen('home')}
           onStart={({ myDeck, myName, foeDeckId, difficulty, mode }) => {
-            const foe = getPreset(foeDeckId);
+            const foe =
+              foeDeckId === RANDOM_FOE_ID
+                ? DECK_PRESETS[Math.floor(Math.random() * DECK_PRESETS.length)]
+                : getPreset(foeDeckId);
             setBattleConfig({
               myDeck,
               myName,

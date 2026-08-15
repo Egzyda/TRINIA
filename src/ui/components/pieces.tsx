@@ -115,11 +115,12 @@ interface UnitChipProps {
   unit: UnitInstance;
   state: GameState;
   mode: 'idle' | 'selectable' | 'targetable' | 'selected';
+  hit?: boolean;
   onTap: () => void;
   onInfo: () => void;
 }
 
-export function UnitChip({ unit, state, mode, onTap, onInfo }: UnitChipProps) {
+export function UnitChip({ unit, state, mode, hit, onTap, onInfo }: UnitChipProps) {
   const def = getCard(unit.defId);
   const frozen = unit.frozenUntilTurn !== undefined && state.turn <= unit.frozenUntilTurn;
   const attack = effectiveAttack(unit);
@@ -127,7 +128,7 @@ export function UnitChip({ unit, state, mode, onTap, onInfo }: UnitChipProps) {
 
   return (
     <div
-      className={`chip faction-${def.faction} ${mode} ${unit.hasAttacked ? 'exhausted' : ''}`}
+      className={`chip faction-${def.faction} ${mode} ${unit.hasAttacked ? 'exhausted' : ''} ${hit ? 'hit-flash' : ''}`}
       role="button"
       tabIndex={0}
       onClick={onTap}
@@ -168,17 +169,18 @@ export function UnitChip({ unit, state, mode, onTap, onInfo }: UnitChipProps) {
 interface FacilityChipProps {
   facility: FacilityInstance;
   mode: 'idle' | 'selectable' | 'targetable' | 'selected';
+  hit?: boolean;
   onTap: () => void;
   onInfo: () => void;
 }
 
-export function FacilityChip({ facility, mode, onTap, onInfo }: FacilityChipProps) {
+export function FacilityChip({ facility, mode, hit, onTap, onInfo }: FacilityChipProps) {
   const def = getCard(facility.defId);
   const countdown = def.passives?.find((p) => p.kind === 'countdownWin');
 
   return (
     <div
-      className={`chip faction-${def.faction} ${mode}`}
+      className={`chip faction-${def.faction} ${mode} ${hit ? 'hit-flash' : ''}`}
       role="button"
       tabIndex={0}
       onClick={onTap}

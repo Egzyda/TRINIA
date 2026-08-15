@@ -14,7 +14,7 @@ import { ChevronLeft, Heart, Minus, Plus, ScrollText, Swords, X } from 'lucide-r
 import { CardSheet, FacilityChip, HandCard, ResourceIcon, UnitChip } from '../components/pieces';
 import { useBattle, type BattleConfig } from '../useBattle';
 import { getCard } from '../../cards/cardFactory';
-import { costOptions, paidResourceOf } from '../../cards/baseCard';
+import { canPay, costOptions, formatCost, paidResourceOf } from '../../cards/baseCard';
 import { entryEffects, legalTargets, requiresTarget, targetSpecOf } from '../../core/effects';
 import { legalAttackTargets, playableCards } from '../../core/mainPhaseEngine';
 import { RESOURCE_KINDS, RESOURCE_LABEL } from '../../core/types';
@@ -39,7 +39,8 @@ type Pending =
       kind: 'playCard';
       uid: string;
       def: CardDef;
-      costOption: number;
+      /** 支払い方が複数あるカード（錬金術）は未選択のうちは undefined */
+      costOption?: number;
       specs: TargetSpec[];
       targets: TargetRef[];
       resource?: ResourceKind;
@@ -105,6 +106,53 @@ export function BattleScreen({ config, onExit }: Props) {
   }, [state.turn]);
   useEffect(() => () => clearTimeout(bannerTimeoutRef.current), []);
 
+  // 被弾（HP減少）した対象を一瞬だけ光らせる。「いきなり事象が起きて分からない」を
+  // 減らすための最小限の演出で、召喚は .chip のマウントアニメ（CSS側）に任せている。
+  const prevHpRef = useRef<Map<string, number>>(new Map());
+  const flashTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const [hitIds, setHitIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const prev = prevHpRef.current;
+    const next = new Map<string, number>();
+    const hit: string[] = [];
+    for (const player of state.players) {
+      const baseKey = `base:${player.id}`;
+      next.set(baseKey, player.baseHp);
+      if (prev.has(baseKey) && prev.get(baseKey)! > player.baseHp) hit.push(baseKey);
+      for (const u of player.units) {
+        next.set(u.uid, u.hp);
+        if (prev.has(u.uid) && prev.get(u.uid)! > u.hp) hit.push(u.uid);
+      }
+      for (const f of player.facilities) {
+        next.set(f.uid, f.hp);
+        if (prev.has(f.uid) && prev.get(f.uid)! > f.hp) hit.push(f.uid);
+      }
+    }
+    prevHpRef.current = next;
+    if (hit.length === 0) return;
+    setHitIds((prevSet) => new Set([...prevSet, ...hit]));
+    for (const id of hit) {
+      clearTimeout(flashTimeoutsRef.current.get(id));
+      flashTimeoutsRef.current.set(
+        id,
+        setTimeout(() => {
+          setHitIds((prevSet) => {
+            if (!prevSet.has(id)) return prevSet;
+            const next = new Set(prevSet);
+            next.delete(id);
+            return next;
+          });
+        }, 450),
+      );
+    }
+    // stateそのものではなくログ長で見ると余計な再判定を避けられるが、
+    // HPは分配・応答など他フェイズの遷移でも変わりうるためstate全体を見る
+  }, [state]);
+  useEffect(
+    () => () => flashTimeoutsRef.current.forEach((t) => clearTimeout(t)),
+    [],
+  );
+
   const playableUids = useMemo(() => {
     if (state.phase !== 'main' || !isMyTurn) return new Set<string>();
     return new Set(playableCards(state, me).map((p) => p.uid));
@@ -118,6 +166,7 @@ export function BattleScreen({ config, onExit }: Props) {
       return unit ? legalAttackTargets(state, unit) : [];
     }
     if (pending.kind === 'playCard') {
+      if (pending.costOption === undefined) return [];
       const spec = pending.specs[pending.targets.length];
       return spec ? legalTargets(state, me, spec, pending.def.type === 'spell') : [];
     }
@@ -139,6 +188,7 @@ export function BattleScreen({ config, onExit }: Props) {
   /** 対象・リソース選択が揃ったら実際にアクションを送る */
   const commit = (p: NonNullable<Pending>) => {
     if (p.kind === 'playCard') {
+      if (p.costOption === undefined) return;
       const needsResource = entryEffects(p.def).some((e) => e.kind === 'gainResource');
       if (p.targets.length < p.specs.length) return;
       if (needsResource && !p.resource) return;
@@ -181,20 +231,19 @@ export function BattleScreen({ config, onExit }: Props) {
     if (!card) return;
     const def = getCard(card.defId);
 
-    // 支払い方が複数あるカード（錬金術）は、いま払える最初の選択肢を採用する
+    // 支払い方が複数あるカード（錬金術）は、いま払える選択肢が1通りだけなら自動採用、
+    // 複数あるならプレイヤーに選んでもらう（勝手に資金優先で決めない）
     const options = costOptions(def);
-    const costOption = options.findIndex(
-      (c) =>
-        myPlayer.resources.fund >= c.fund &&
-        myPlayer.resources.mana >= c.mana &&
-        myPlayer.resources.aether >= c.aether,
-    );
-    if (costOption < 0) return;
+    const affordable = options
+      .map((_, i) => i)
+      .filter((i) => canPay(myPlayer.resources, options[i]));
+    if (affordable.length === 0) return;
+    const costOption = affordable.length === 1 ? affordable[0] : undefined;
 
     const specs = entryEffects(def).filter(requiresTarget).map(targetSpecOf);
     const next: Pending = { kind: 'playCard', uid, def, costOption, specs, targets: [] };
     const needsResource = entryEffects(def).some((e) => e.kind === 'gainResource');
-    if (specs.length === 0 && !needsResource) {
+    if (costOption !== undefined && specs.length === 0 && !needsResource) {
       if (dispatch({ type: 'playCard', uid, costOption })) setPending(null);
       return;
     }
@@ -300,7 +349,7 @@ export function BattleScreen({ config, onExit }: Props) {
         </div>
       </div>
 
-      <StatusBar player={foePlayer} side="foe" />
+      <StatusBar player={foePlayer} side="foe" hit={hitIds.has(`base:${foe}`)} />
 
       <div className="board">
         <div className="board-foe">
@@ -312,6 +361,7 @@ export function BattleScreen({ config, onExit }: Props) {
                 key={f.uid}
                 facility={f}
                 mode={isTargetable({ kind: 'facility', uid: f.uid }) ? 'targetable' : 'idle'}
+                hit={hitIds.has(f.uid)}
                 onTap={() =>
                   isTargetable({ kind: 'facility', uid: f.uid })
                     ? tapTarget({ kind: 'facility', uid: f.uid })
@@ -332,6 +382,7 @@ export function BattleScreen({ config, onExit }: Props) {
                 unit={u}
                 state={state}
                 mode={isTargetable({ kind: 'unit', uid: u.uid }) ? 'targetable' : 'idle'}
+                hit={hitIds.has(u.uid)}
                 onTap={() =>
                   isTargetable({ kind: 'unit', uid: u.uid })
                     ? tapTarget({ kind: 'unit', uid: u.uid })
@@ -343,25 +394,29 @@ export function BattleScreen({ config, onExit }: Props) {
           })}
         </Zone>
 
-        {isTargetable({ kind: 'base', player: foe }) && (
-          <button
-            className="base-target"
-            onClick={() => tapTarget({ kind: 'base', player: foe })}
-          >
-            相手の拠点を対象にする
-          </button>
-        )}
+        {/*
+          常に高さを確保したまま可視/不可視だけを切り替える。
+          条件付きマウントにすると、対象選択のたびに下の要素が
+          ずれて「タップするたびにフィールドが動く」不便があったため。
+        */}
+        <button
+          className={`base-target ${isTargetable({ kind: 'base', player: foe }) ? '' : 'inert'}`}
+          onClick={() => tapTarget({ kind: 'base', player: foe })}
+        >
+          相手の拠点を対象にする
+        </button>
 
         </div>
 
         <div className="divider" />
 
         <div className="board-me">
-        {isTargetable({ kind: 'base', player: me }) && (
-          <button className="base-target" onClick={() => tapTarget({ kind: 'base', player: me })}>
-            自分の拠点を対象にする
-          </button>
-        )}
+        <button
+          className={`base-target ${isTargetable({ kind: 'base', player: me }) ? '' : 'inert'}`}
+          onClick={() => tapTarget({ kind: 'base', player: me })}
+        >
+          自分の拠点を対象にする
+        </button>
 
         <Zone label="自分前衛">
           {renderSlots(myPlayer.units.length, state.rules.MAX_UNITS, (i) => {
@@ -374,6 +429,7 @@ export function BattleScreen({ config, onExit }: Props) {
                 unit={u}
                 state={state}
                 mode={selected ? 'selected' : targetable ? 'targetable' : 'idle'}
+                hit={hitIds.has(u.uid)}
                 onTap={() => tapMyUnit(u.uid)}
                 onInfo={() => setSheet(getCard(u.defId))}
               />
@@ -396,6 +452,7 @@ export function BattleScreen({ config, onExit }: Props) {
                       ? 'targetable'
                       : 'idle'
                 }
+                hit={hitIds.has(f.uid)}
                 onTap={() => tapMyFacility(f.uid)}
                 onInfo={() => setSheet(getCard(f.defId))}
               />
@@ -405,7 +462,7 @@ export function BattleScreen({ config, onExit }: Props) {
         </div>
       </div>
 
-      <StatusBar player={myPlayer} side="me" />
+      <StatusBar player={myPlayer} side="me" hit={hitIds.has(`base:${me}`)} />
 
       <div className="control-area">
         {battle.error && (
@@ -477,6 +534,10 @@ export function BattleScreen({ config, onExit }: Props) {
           <PendingPanel
             pending={pending}
             onCancel={cancelPending}
+            onPickCost={(i) => {
+              if (pending.kind !== 'playCard') return;
+              setPending({ ...pending, costOption: i });
+            }}
             onPickResource={(r) => {
               const next = { ...pending, resource: r } as NonNullable<Pending>;
               setPending(next);
@@ -562,11 +623,16 @@ export function BattleScreen({ config, onExit }: Props) {
             {state.winner === me ? 'WIN' : 'LOSE'}
           </div>
           <div className="reason">{state.winReason}</div>
+          {/*
+            「もう一度」が目立つ配色だと、ホームへ戻るつもりでうっかり押されて
+            そのまま次の対局が始まってしまう（「ホームに戻らず次の試合が始まる」報告）。
+            対局後の既定の導線はホームへ戻る方なので、そちらを主ボタンにする。
+          */}
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button className="btn" onClick={onExit}>
+            <button className="btn btn-primary" onClick={onExit}>
               ホームへ
             </button>
-            <button className="btn btn-primary" onClick={battle.restart}>
+            <button className="btn" onClick={battle.restart}>
               もう一度
             </button>
           </div>
@@ -604,11 +670,19 @@ function renderSlots(filled: number, max: number, render: (i: number) => React.R
   return nodes;
 }
 
-function StatusBar({ player, side }: { player: PlayerState; side: 'me' | 'foe' }) {
+function StatusBar({
+  player,
+  side,
+  hit,
+}: {
+  player: PlayerState;
+  side: 'me' | 'foe';
+  hit?: boolean;
+}) {
   return (
     <div className={`status-bar ${side}`}>
       <span className="status-name">{player.name}</span>
-      <span className="hp">
+      <span className={`hp ${hit ? 'hit-flash' : ''}`}>
         <Heart size={13} />
         {player.baseHp}
         <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>/{player.maxBaseHp}</span>
@@ -752,26 +826,35 @@ function RespondPanel({
 function PendingPanel({
   pending,
   onCancel,
+  onPickCost,
   onPickResource,
   myResources,
 }: {
   pending: NonNullable<Pending>;
   onCancel: () => void;
+  onPickCost: (costOption: number) => void;
   onPickResource: (r: ResourceKind) => void;
   myResources: import('../../core/types').Resources;
 }) {
   let title = '';
+  let needsCost = false;
   let needsResource = false;
   let excluded: ResourceKind | undefined;
 
   if (pending.kind === 'attack') {
     title = '攻撃対象を選んでください（もう一度タップでキャンセル）';
   } else if (pending.kind === 'playCard') {
-    needsResource = entryEffects(pending.def).some((e) => e.kind === 'gainResource') && !pending.resource;
-    excluded = paidResourceOf(costOptions(pending.def)[pending.costOption]);
-    title = needsResource
-      ? `${pending.def.name}: 獲得するリソースを選んでください`
-      : `${pending.def.name}: 対象を選んでください`;
+    needsCost = pending.costOption === undefined;
+    needsResource =
+      !needsCost &&
+      entryEffects(pending.def).some((e) => e.kind === 'gainResource') &&
+      !pending.resource;
+    excluded = needsCost ? undefined : paidResourceOf(costOptions(pending.def)[pending.costOption!]);
+    title = needsCost
+      ? `${pending.def.name}: 支払うリソースを選んでください`
+      : needsResource
+        ? `${pending.def.name}: 獲得するリソースを選んでください`
+        : `${pending.def.name}: 対象を選んでください`;
   } else {
     const ability = pending.def.activated;
     needsResource = ability?.kind === 'convertResource' && !pending.resource;
@@ -784,7 +867,17 @@ function PendingPanel({
   return (
     <div className="prompt">
       <div className="prompt-title">{title}</div>
-      {needsResource ? (
+      {needsCost && pending.kind === 'playCard' ? (
+        <div className="prompt-actions">
+          {costOptions(pending.def).map((c, i) =>
+            canPay(myResources, c) ? (
+              <button key={i} className="btn" onClick={() => onPickCost(i)}>
+                {formatCost(c)}
+              </button>
+            ) : null,
+          )}
+        </div>
+      ) : needsResource ? (
         <div className="prompt-actions">
           {RESOURCE_KINDS.filter((r) => r !== excluded).map((r) => (
             <button key={r} className="btn" onClick={() => onPickResource(r)}>

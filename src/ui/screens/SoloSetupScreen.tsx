@@ -4,7 +4,7 @@
  * チップ選択＋1行説明のみで構成し、スクロールなしで1画面に収める。
  */
 import { useState } from 'react';
-import { ChevronLeft, Play } from 'lucide-react';
+import { ChevronLeft, Play, Shuffle } from 'lucide-react';
 import { DECK_PRESETS } from '../../cards/decks';
 import { DIFFICULTY_DESCRIPTION, DIFFICULTY_LABEL, type Difficulty } from '../../ai';
 import { MATCH_MODES, type MatchModeId } from '../../core/rules';
@@ -24,6 +24,9 @@ interface Props {
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'normal', 'hard'];
 
+/** 相手デッキの選択肢に加える「ランダム」の特殊値。対局開始時に実際のプリセットへ解決する */
+export const RANDOM_FOE_ID = 'random';
+
 export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
   const usable = slots.filter((s) => s.cards.length === 20);
   const [myDeckIdx, setMyDeckIdx] = useState(0);
@@ -33,6 +36,7 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
 
   const myDeck = usable[myDeckIdx];
   const selectedMode = MATCH_MODES.find((m) => m.id === mode)!;
+  const isRandomFoe = foeDeckId === RANDOM_FOE_ID;
   const selectedFoe = DECK_PRESETS.find((p) => p.id === foeDeckId);
 
   return (
@@ -80,6 +84,12 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
 
         <SetupRow label="相手デッキ">
           <div className="chip-row">
+            <button
+              className={`chip-btn ${isRandomFoe ? 'active' : ''}`}
+              onClick={() => setFoeDeckId(RANDOM_FOE_ID)}
+            >
+              <Shuffle size={12} /> ランダム
+            </button>
             {DECK_PRESETS.map((preset) => (
               <button
                 key={preset.id}
@@ -90,7 +100,9 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
               </button>
             ))}
           </div>
-          <div className="setup-desc">{selectedFoe?.description}</div>
+          <div className="setup-desc">
+            {isRandomFoe ? '対局開始時にランダムで選ばれます。' : selectedFoe?.description}
+          </div>
         </SetupRow>
 
         <SetupRow label="難易度">

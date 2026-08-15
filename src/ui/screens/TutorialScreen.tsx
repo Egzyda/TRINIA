@@ -114,7 +114,7 @@ export function TutorialScreen({ onBack }: { onBack: () => void }) {
           <section>
             <h3>操作のコツ</h3>
             <ul>
-              <li>手札を長押しするとカードの詳細が開きます</li>
+              <li>カード右上の i マークをタップするとカードの詳細が開きます</li>
               <li>自分のユニットをタップ → 攻撃対象をタップ、で攻撃します</li>
               <li>選択をやめたいときは、同じものをもう一度タップします</li>
             </ul>
