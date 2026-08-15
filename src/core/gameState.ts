@@ -30,8 +30,13 @@ export function nextUid(state: GameState, prefix: string): string {
 /** UIが表示するのは直近のみ。AIの探索で状態を複製し続けても膨らまないよう上限を設ける */
 const LOG_LIMIT = 120;
 
-export function log(state: GameState, player: PlayerId | null, text: string): void {
-  state.log.push({ turn: state.turn, player, text });
+export function log(
+  state: GameState,
+  player: PlayerId | null,
+  text: string,
+  kind?: 'attack',
+): void {
+  state.log.push({ turn: state.turn, player, text, kind });
   if (state.log.length > LOG_LIMIT) state.log.splice(0, state.log.length - LOG_LIMIT);
 }
 

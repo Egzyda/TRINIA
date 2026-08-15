@@ -268,6 +268,8 @@ export interface LogEntry {
   turn: number;
   player: PlayerId | null;
   text: string;
+  /** UI側の演出振り分け用（例: 攻撃は専用エフェクトがあるのでトースト表示を省く） */
+  kind?: 'attack';
 }
 
 // ---------------------------------------------------------------------------

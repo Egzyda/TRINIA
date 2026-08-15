@@ -513,6 +513,24 @@ button {
   color: var(--danger);
 }
 
+/* 攻撃した側を一瞬弾ませる。「何が攻撃したか」を分かりやすくする最小限の演出 */
+@keyframes attack-lunge {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.chip.attack-lunge {
+  animation: attack-lunge 0.32s ease-out;
+  z-index: 2;
+}
+
 .chip .chip-art {
   font-size: 20px;
   line-height: 1;
@@ -621,6 +639,11 @@ button {
   border-color: #3a6f96;
 }
 
+.badge.done {
+  color: var(--text-dim);
+  border-color: var(--line);
+}
+
 .badge.counter {
   color: var(--danger);
   border-color: var(--danger);
@@ -670,9 +693,38 @@ button {
   padding-bottom: var(--safe-bottom);
 }
 
-.prompt {
-  padding: 7px 12px;
+/*
+ * 対象選択・捨て札の案内バー。常時マウントしたまま高さを固定し、
+ * 見た目だけ切り替える（内容の有無で .control-area の高さが変わって
+ * 盤面が押し縮められる = 「操作するたびに盤面がずれる」不便を防ぐため）。
+ */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--line);
+}
+
+.action-bar.inert {
+  visibility: hidden;
+}
+
+.action-bar-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action-bar-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  min-height: 0;
+  font-size: 12.5px;
 }
 
 .prompt-title {
@@ -758,10 +810,6 @@ button {
 
 /* --- オークションUI --- */
 
-.auction {
-  padding: 18px 16px calc(18px + var(--safe-bottom));
-}
-
 .auction-value {
   text-align: center;
   font-size: 44px;
@@ -836,26 +884,6 @@ button {
   padding: 1px 3px;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.55);
-}
-
-.hand-card .hc-info {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.45);
-  color: var(--text-dim);
-}
-
-.hand-card .hc-info:active {
-  background: rgba(0, 0, 0, 0.7);
-  color: var(--text);
 }
 
 .hand-card .hc-art {
@@ -963,6 +991,11 @@ button {
   align-items: flex-end;
 }
 
+/* オークション・分配・応答などの必須選択は、カード詳細より手前に出す */
+.action-backdrop {
+  z-index: 42;
+}
+
 .sheet {
   width: 100%;
   background: var(--bg-panel);
@@ -1017,6 +1050,13 @@ button {
   margin-bottom: 12px;
 }
 
+.sheet-action-reason {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
 /* --- 先攻/後攻の告知バナー（オークション解決直後に一時表示） --- */
 
 .first-banner {
@@ -1063,6 +1103,58 @@ button {
   font-size: 12px;
   color: var(--text-dim);
   line-height: 1.6;
+}
+
+/* --- 出来事トースト（AIのターンや効果解決を一瞬だけ知らせる） --- */
+
+.toast-stack {
+  position: absolute;
+  top: calc(var(--safe-top) + 48px);
+  left: 8px;
+  right: 8px;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 7px 11px;
+  border-radius: var(--radius-sm);
+  background: rgba(10, 14, 20, 0.92);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  font-size: 11.5px;
+  line-height: 1.4;
+  animation: toast-in 0.18s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.toast.me {
+  border-color: #3a6f96;
+  color: #9fd0ff;
+}
+
+.toast.foe {
+  border-color: #a3663a;
+  color: #ffc9a0;
+}
+
+.toast.sys {
+  color: var(--text-dim);
+}
+
+.toast.error {
+  border-color: var(--danger);
+  background: rgba(255, 95, 109, 0.14);
+  color: #ffb0b6;
 }
 
 /* --- 結果表示 --- */

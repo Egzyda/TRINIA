@@ -66,6 +66,8 @@ export function BattleScreen({ config, onExit }: Props) {
 
   const [pending, setPending] = useState<Pending>(null);
   const [sheet, setSheet] = useState<CardDef | null>(null);
+  /** タップした手札カードの詳細（プレイボタン付き）。誤タップでの即召喚を防ぐ */
+  const [handSheetUid, setHandSheetUid] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [discardPick, setDiscardPick] = useState<string[]>([]);
   const [alloc, setAlloc] = useState({ fund: 0, mana: 0, aether: 0, draw: 0 });
@@ -80,6 +82,7 @@ export function BattleScreen({ config, onExit }: Props) {
   useEffect(() => {
     setPending(null);
     setDiscardPick([]);
+    setHandSheetUid(null);
     if (state.phase === 'allocate') setAlloc({ fund: 0, mana: 0, aether: 0, draw: 0 });
   }, [state.phase, state.turn]);
 
@@ -106,52 +109,99 @@ export function BattleScreen({ config, onExit }: Props) {
   }, [state.turn]);
   useEffect(() => () => clearTimeout(bannerTimeoutRef.current), []);
 
-  // 被弾（HP減少）した対象を一瞬だけ光らせる。「いきなり事象が起きて分からない」を
-  // 減らすための最小限の演出で、召喚は .chip のマウントアニメ（CSS側）に任せている。
+  // 被弾（HP減少）した対象を一瞬だけ光らせ、攻撃した側は一瞬弾ませる。
+  // AIのターンが一気に進んで「いきなり事象が起きて分からない」を減らすための
+  // 最小限の演出。召喚は .chip のマウントアニメ（CSS側）に任せている。
   const prevHpRef = useRef<Map<string, number>>(new Map());
+  const prevAttackedRef = useRef<Set<string>>(new Set());
   const flashTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [hitIds, setHitIds] = useState<Set<string>>(new Set());
+  const [lungeIds, setLungeIds] = useState<Set<string>>(new Set());
+
+  const flashOnce = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string, ms: number) => {
+    setter((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    clearTimeout(flashTimeoutsRef.current.get(id));
+    flashTimeoutsRef.current.set(
+      id,
+      setTimeout(() => {
+        setter((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, ms),
+    );
+  };
+
+  // 対局ログの新着分をトースト表示する（攻撃は上のエフェクトで分かるのでここでは出さない）
+  const prevLogLenRef = useRef(0);
+  const [toasts, setToasts] = useState<{ id: number; text: string; tone: 'me' | 'foe' | 'sys' | 'error' }[]>([]);
+  const toastSeqRef = useRef(0);
+  const toastTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const pushToast = (text: string, tone: 'me' | 'foe' | 'sys' | 'error') => {
+    const id = ++toastSeqRef.current;
+    setToasts((prev) => [...prev.slice(-2), { id, text, tone }]);
+    toastTimeoutsRef.current.set(
+      id,
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+        toastTimeoutsRef.current.delete(id);
+      }, 2400),
+    );
+  };
+
   useEffect(() => {
-    const prev = prevHpRef.current;
-    const next = new Map<string, number>();
-    const hit: string[] = [];
+    const prevHp = prevHpRef.current;
+    const nextHp = new Map<string, number>();
+    const prevAtk = prevAttackedRef.current;
+    const nextAtk = new Set<string>();
     for (const player of state.players) {
       const baseKey = `base:${player.id}`;
-      next.set(baseKey, player.baseHp);
-      if (prev.has(baseKey) && prev.get(baseKey)! > player.baseHp) hit.push(baseKey);
+      nextHp.set(baseKey, player.baseHp);
+      if (prevHp.has(baseKey) && prevHp.get(baseKey)! > player.baseHp) flashOnce(setHitIds, baseKey, 450);
       for (const u of player.units) {
-        next.set(u.uid, u.hp);
-        if (prev.has(u.uid) && prev.get(u.uid)! > u.hp) hit.push(u.uid);
+        nextHp.set(u.uid, u.hp);
+        if (prevHp.has(u.uid) && prevHp.get(u.uid)! > u.hp) flashOnce(setHitIds, u.uid, 450);
+        if (u.hasAttacked) {
+          nextAtk.add(u.uid);
+          if (!prevAtk.has(u.uid)) flashOnce(setLungeIds, u.uid, 320);
+        }
       }
       for (const f of player.facilities) {
-        next.set(f.uid, f.hp);
-        if (prev.has(f.uid) && prev.get(f.uid)! > f.hp) hit.push(f.uid);
+        nextHp.set(f.uid, f.hp);
+        if (prevHp.has(f.uid) && prevHp.get(f.uid)! > f.hp) flashOnce(setHitIds, f.uid, 450);
       }
     }
-    prevHpRef.current = next;
-    if (hit.length === 0) return;
-    setHitIds((prevSet) => new Set([...prevSet, ...hit]));
-    for (const id of hit) {
-      clearTimeout(flashTimeoutsRef.current.get(id));
-      flashTimeoutsRef.current.set(
-        id,
-        setTimeout(() => {
-          setHitIds((prevSet) => {
-            if (!prevSet.has(id)) return prevSet;
-            const next = new Set(prevSet);
-            next.delete(id);
-            return next;
-          });
-        }, 450),
-      );
+    prevHpRef.current = nextHp;
+    prevAttackedRef.current = nextAtk;
+
+    const prevLogLen = prevLogLenRef.current;
+    prevLogLenRef.current = state.log.length;
+    if (prevLogLen > 0) {
+      for (const entry of state.log.slice(prevLogLen)) {
+        if (entry.kind === 'attack') continue;
+        const tone = entry.player === null ? 'sys' : entry.player === me ? 'me' : 'foe';
+        pushToast(entry.text, tone);
+      }
     }
     // stateそのものではなくログ長で見ると余計な再判定を避けられるが、
     // HPは分配・応答など他フェイズの遷移でも変わりうるためstate全体を見る
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
   useEffect(
-    () => () => flashTimeoutsRef.current.forEach((t) => clearTimeout(t)),
+    () => () => {
+      flashTimeoutsRef.current.forEach((t) => clearTimeout(t));
+      toastTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    },
     [],
   );
+
+  // 入力エラーもトーストで一瞬知らせる（従来は消えない固定パネルで盤面を押し縮めていた）
+  useEffect(() => {
+    if (battle.error) pushToast(battle.error, 'error');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battle.error]);
 
   const playableUids = useMemo(() => {
     if (state.phase !== 'main' || !isMyTurn) return new Set<string>();
@@ -213,6 +263,11 @@ export function BattleScreen({ config, onExit }: Props) {
     }
   };
 
+  /**
+   * 手札タップの入り口。誤タップでそのまま召喚されないよう、
+   * ここでは詳細シートを開くだけにして、実際のプレイ開始は
+   * シート内のボタン（beginPlayHandCard）に委ねる。
+   */
   const tapHandCard = (uid: string) => {
     if (state.phase === 'discard') {
       setDiscardPick((prev) =>
@@ -225,6 +280,11 @@ export function BattleScreen({ config, onExit }: Props) {
       setPending(null);
       return;
     }
+    setHandSheetUid(uid);
+  };
+
+  /** 手札シートの実行ボタンから呼ばれる、実際のプレイ開始処理 */
+  const beginPlayHandCard = (uid: string) => {
     if (!playableUids.has(uid)) return;
 
     const card = myPlayer.hand.find((c) => c.uid === uid);
@@ -332,6 +392,43 @@ export function BattleScreen({ config, onExit }: Props) {
   const allocRemain = state.rules.FREE_POINTS - allocTotal;
   const discardNeed = Math.max(0, myPlayer.hand.length - state.rules.HAND_LIMIT);
 
+  // pending は「支払い方／獲得リソースを選ぶ（盤面操作は不要）」段階と
+  // 「対象を選ぶ（盤面タップが必要）」段階の2種類がある。前者はモーダルへ、
+  // 後者は盤面をふさがない固定バーへ出す。ここで両者を切り分ける。
+  const pendingNeedsCost = pending?.kind === 'playCard' && pending.costOption === undefined;
+  const pendingNeedsResource =
+    !!pending &&
+    !pendingNeedsCost &&
+    ((pending.kind === 'playCard' &&
+      entryEffects(pending.def).some((e) => e.kind === 'gainResource') &&
+      !pending.resource) ||
+      (pending.kind === 'activate' &&
+        pending.def.activated?.kind === 'convertResource' &&
+        !pending.resource));
+  const pendingIsModal = pendingNeedsCost || pendingNeedsResource;
+  const pendingIsTargeting = !!pending && state.phase === 'main' && !pendingIsModal;
+
+  // 下部の固定バー（常時マウント・visibilityだけ切り替え）に出す内容。
+  // ここが変わっても .control-area の高さが変わらないので盤面がずれない。
+  let actionBar: {
+    text: string;
+    onCancel?: () => void;
+    confirm?: { label: string; disabled: boolean; onClick: () => void };
+  } | null = null;
+  if (pendingIsTargeting && pending) {
+    const targetLabel = pending.kind === 'attack' ? '攻撃対象' : `${pending.def.name}: 対象`;
+    actionBar = { text: `${targetLabel}を選んでください`, onCancel: cancelPending };
+  } else if (state.phase === 'discard' && isMyTurn) {
+    actionBar = {
+      text: `手札を${discardNeed}枚選択（${discardPick.length}/${discardNeed}）`,
+      confirm: {
+        label: '捨てる',
+        disabled: discardPick.length !== discardNeed,
+        onClick: () => dispatch({ type: 'discard', uids: discardPick }),
+      },
+    };
+  }
+
   return (
     <div className="screen battle">
       <div className="topbar">
@@ -383,6 +480,7 @@ export function BattleScreen({ config, onExit }: Props) {
                 state={state}
                 mode={isTargetable({ kind: 'unit', uid: u.uid }) ? 'targetable' : 'idle'}
                 hit={hitIds.has(u.uid)}
+                lunge={lungeIds.has(u.uid)}
                 onTap={() =>
                   isTargetable({ kind: 'unit', uid: u.uid })
                     ? tapTarget({ kind: 'unit', uid: u.uid })
@@ -430,6 +528,8 @@ export function BattleScreen({ config, onExit }: Props) {
                 state={state}
                 mode={selected ? 'selected' : targetable ? 'targetable' : 'idle'}
                 hit={hitIds.has(u.uid)}
+                lunge={lungeIds.has(u.uid)}
+                exhausted={u.hasAttacked}
                 onTap={() => tapMyUnit(u.uid)}
                 onInfo={() => setSheet(getCard(u.defId))}
               />
@@ -465,104 +565,29 @@ export function BattleScreen({ config, onExit }: Props) {
       <StatusBar player={myPlayer} side="me" hit={hitIds.has(`base:${me}`)} />
 
       <div className="control-area">
-        {battle.error && (
-          <div className="prompt">
-            <div className="notice">{battle.error}</div>
-          </div>
-        )}
-
-        {/* --- オークション（仕様書 2.2） --- */}
-        {state.phase === 'auction' && myPlayer.bid < 0 && (
-          <AuctionPanel
-            maxBid={state.rules.MAX_BID}
-            baseHp={myPlayer.baseHp}
-            value={bid}
-            onChange={setBid}
-            onSubmit={() => dispatch({ type: 'bid', player: me, amount: bid })}
-          />
-        )}
-        {state.phase === 'auction' && myPlayer.bid >= 0 && (
-          <div className="prompt">
-            <div className="prompt-title">提示済み（{myPlayer.bid}）。相手の提示を待っています…</div>
-          </div>
-        )}
-
-        {/* --- 分配フェイズ（仕様書 2.4-2） --- */}
-        {state.phase === 'allocate' && isMyTurn && (
-          <div className="prompt">
-            <div className="prompt-title">
-              フリーポイント{state.rules.FREE_POINTS}ptを分配してください
-            </div>
-            <div className="alloc-grid">
-              {(['fund', 'mana', 'aether'] as const).map((kind) => (
-                <AllocCell
-                  key={kind}
-                  label={RESOURCE_LABEL[kind]}
-                  value={alloc[kind]}
-                  canAdd={allocRemain > 0}
-                  onAdd={() => setAlloc((a) => ({ ...a, [kind]: a[kind] + 1 }))}
-                  onSub={() => setAlloc((a) => ({ ...a, [kind]: Math.max(0, a[kind] - 1) }))}
-                  icon={<ResourceIcon kind={kind} size={11} />}
-                />
-              ))}
-              <AllocCell
-                label="ドロー"
-                value={alloc.draw}
-                canAdd={allocRemain > 0}
-                onAdd={() => setAlloc((a) => ({ ...a, draw: a.draw + 1 }))}
-                onSub={() => setAlloc((a) => ({ ...a, draw: Math.max(0, a.draw - 1) }))}
-              />
-            </div>
-            <div className="alloc-remain">
-              残り <strong>{allocRemain}</strong> pt
-            </div>
-            <button
-              className="btn btn-primary btn-block"
-              disabled={allocRemain !== 0}
-              onClick={() => dispatch({ type: 'allocate', ...alloc })}
-            >
-              決定
+        {/*
+          常時マウントの固定高さバー。対象選択・捨て札の案内をここに出す。
+          条件付きマウントだと内容の有無で高さが変わり、.board（flex:1）が
+          押し縮められて「操作するたびに盤面がずれる」原因になっていたため、
+          常に同じ高さを確保して見た目だけ切り替える。
+        */}
+        <div className={`action-bar ${actionBar ? '' : 'inert'}`}>
+          <span className="action-bar-text">{actionBar?.text}</span>
+          {actionBar?.onCancel && (
+            <button className="icon-btn" onClick={actionBar.onCancel} aria-label="キャンセル">
+              <X size={15} />
             </button>
-          </div>
-        )}
-
-        {/* --- 応答フェイズ（打ち消し） --- */}
-        {state.phase === 'respond' && state.priority === me && <RespondPanel state={state} me={me} dispatch={dispatch} />}
-
-        {/* --- 対象選択中 --- */}
-        {pending && state.phase === 'main' && (
-          <PendingPanel
-            pending={pending}
-            onCancel={cancelPending}
-            onPickCost={(i) => {
-              if (pending.kind !== 'playCard') return;
-              setPending({ ...pending, costOption: i });
-            }}
-            onPickResource={(r) => {
-              const next = { ...pending, resource: r } as NonNullable<Pending>;
-              setPending(next);
-              if (next.kind === 'playCard' && next.targets.length >= next.specs.length) commit(next);
-              if (next.kind === 'activate') commit(next);
-            }}
-            myResources={myPlayer.resources}
-          />
-        )}
-
-        {/* --- 捨て札（仕様書 2.1: ターン終了時に7枚へ） --- */}
-        {state.phase === 'discard' && isMyTurn && (
-          <div className="prompt">
-            <div className="prompt-title">
-              手札上限のため {discardNeed} 枚捨ててください（選択中 {discardPick.length}）
-            </div>
+          )}
+          {actionBar?.confirm && (
             <button
-              className="btn btn-primary btn-block"
-              disabled={discardPick.length !== discardNeed}
-              onClick={() => dispatch({ type: 'discard', uids: discardPick })}
+              className="btn btn-primary action-bar-btn"
+              disabled={actionBar.confirm.disabled}
+              onClick={actionBar.confirm.onClick}
             >
-              捨てる
+              {actionBar.confirm.label}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="hand-bar">
           <div className="hand-scroll">
@@ -573,10 +598,10 @@ export function BattleScreen({ config, onExit }: Props) {
                 playable={playableUids.has(card.uid)}
                 selected={
                   (pending?.kind === 'playCard' && pending.uid === card.uid) ||
-                  discardPick.includes(card.uid)
+                  discardPick.includes(card.uid) ||
+                  handSheetUid === card.uid
                 }
                 onTap={() => tapHandCard(card.uid)}
-                onInfo={() => setSheet(getCard(card.defId))}
               />
             ))}
             {myPlayer.hand.length === 0 && (
@@ -600,6 +625,135 @@ export function BattleScreen({ config, onExit }: Props) {
           </button>
         </div>
       </div>
+
+      {/* 盤面タップが不要な選択肢は、盤面を押し縮めない浮き上がりモーダルで出す */}
+      {state.phase === 'auction' && myPlayer.bid < 0 && (
+        <ActionSheet title="先攻権に支払う拠点HPを提示（同時入力）">
+          <AuctionPanel
+            maxBid={state.rules.MAX_BID}
+            baseHp={myPlayer.baseHp}
+            value={bid}
+            onChange={setBid}
+            onSubmit={() => dispatch({ type: 'bid', player: me, amount: bid })}
+          />
+        </ActionSheet>
+      )}
+      {state.phase === 'auction' && myPlayer.bid >= 0 && (
+        <ActionSheet title="提示済み">
+          <div className="sheet-text">
+            提示: {myPlayer.bid} HP。相手の提示を待っています…
+          </div>
+        </ActionSheet>
+      )}
+
+      {state.phase === 'allocate' && isMyTurn && (
+        <ActionSheet title={`フリーポイント${state.rules.FREE_POINTS}ptを分配してください`}>
+          <div className="alloc-grid">
+            {(['fund', 'mana', 'aether'] as const).map((kind) => (
+              <AllocCell
+                key={kind}
+                label={RESOURCE_LABEL[kind]}
+                value={alloc[kind]}
+                canAdd={allocRemain > 0}
+                onAdd={() => setAlloc((a) => ({ ...a, [kind]: a[kind] + 1 }))}
+                onSub={() => setAlloc((a) => ({ ...a, [kind]: Math.max(0, a[kind] - 1) }))}
+                icon={<ResourceIcon kind={kind} size={11} />}
+              />
+            ))}
+            <AllocCell
+              label="ドロー"
+              value={alloc.draw}
+              canAdd={allocRemain > 0}
+              onAdd={() => setAlloc((a) => ({ ...a, draw: a.draw + 1 }))}
+              onSub={() => setAlloc((a) => ({ ...a, draw: Math.max(0, a.draw - 1) }))}
+            />
+          </div>
+          <div className="alloc-remain">
+            残り <strong>{allocRemain}</strong> pt
+          </div>
+          <button
+            className="btn btn-primary btn-block"
+            disabled={allocRemain !== 0}
+            onClick={() => dispatch({ type: 'allocate', ...alloc })}
+          >
+            決定
+          </button>
+        </ActionSheet>
+      )}
+
+      {state.phase === 'respond' && state.priority === me && (
+        <ActionSheet title="相手の発動に応答">
+          <RespondPanel state={state} me={me} dispatch={dispatch} />
+        </ActionSheet>
+      )}
+
+      {pendingIsModal && pending && (
+        <ActionSheet
+          title={
+            pending.kind === 'playCard' && pendingNeedsCost
+              ? `${pending.def.name}: 支払うリソースを選んでください`
+              : pending.kind === 'playCard'
+                ? `${pending.def.name}: 獲得するリソースを選んでください`
+                : `${pending.def.name}: 変換先のリソースを選んでください`
+          }
+          onCancel={cancelPending}
+        >
+          <PendingModalBody
+            pending={pending}
+            pendingNeedsCost={pendingNeedsCost}
+            onPickCost={(i) => {
+              if (pending.kind !== 'playCard') return;
+              const next = { ...pending, costOption: i };
+              const needsResource = entryEffects(next.def).some((e) => e.kind === 'gainResource');
+              if (next.targets.length >= next.specs.length && !needsResource) {
+                commit(next);
+              } else {
+                setPending(next);
+              }
+            }}
+            onPickResource={(r) => {
+              const next = { ...pending, resource: r } as NonNullable<Pending>;
+              setPending(next);
+              if (next.kind === 'playCard' && next.targets.length >= next.specs.length) commit(next);
+              if (next.kind === 'activate') commit(next);
+            }}
+            myResources={myPlayer.resources}
+          />
+        </ActionSheet>
+      )}
+
+      <div className="toast-stack">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast ${t.tone}`}>
+            {t.text}
+          </div>
+        ))}
+      </div>
+
+      {handSheetUid &&
+        (() => {
+          const card = myPlayer.hand.find((c) => c.uid === handSheetUid);
+          if (!card) return null;
+          const def = getCard(card.defId);
+          const playable = playableUids.has(handSheetUid);
+          const actionLabel =
+            def.type === 'unit' ? '召喚する' : def.type === 'facility' ? '建設する' : '使用する';
+          return (
+            <CardSheet
+              def={def}
+              onClose={() => setHandSheetUid(null)}
+              action={{
+                label: actionLabel,
+                disabled: !playable,
+                reason: playable ? undefined : 'いまは出せません（コストや対象を確認してください）',
+                onClick: () => {
+                  beginPlayHandCard(handSheetUid);
+                  setHandSheetUid(null);
+                },
+              }}
+            />
+          );
+        })()}
 
       {sheet && <CardSheet def={sheet} onClose={() => setSheet(null)} />}
       {showLog && <LogPanel state={state} onClose={() => setShowLog(false)} />}
@@ -739,6 +893,39 @@ function AllocCell({
  * 実機では考える間もなく即決を迫られ操作しづらいため時間無制限にしている。
  * 相手側（AI）は自分の提示を待たずに独自に決めるので、同時入力の性質自体は保たれる。
  */
+/**
+ * 盤面タップが要らない選択肢（オークション・分配・応答・支払い/獲得リソース選択）用の
+ * 浮き上がりモーダル。position:absoluteで盤面レイアウトの外に出すため、
+ * 開閉しても .board や .control-area の高さに影響しない。
+ */
+function ActionSheet({
+  title,
+  onCancel,
+  children,
+}: {
+  title: string;
+  onCancel?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="sheet-backdrop action-backdrop">
+      <div className="sheet">
+        <div className="sheet-head">
+          <div className="sheet-title" style={{ flex: 1 }}>
+            {title}
+          </div>
+          {onCancel && (
+            <button className="icon-btn" onClick={onCancel} aria-label="キャンセル">
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function AuctionPanel({
   maxBid,
   baseHp,
@@ -754,9 +941,6 @@ function AuctionPanel({
 }) {
   return (
     <div className="auction">
-      <div className="prompt-title" style={{ textAlign: 'center' }}>
-        先攻権に支払う拠点HPを提示（同時入力）
-      </div>
       <div className="auction-value">
         {value}
         <small> HP</small>
@@ -803,8 +987,8 @@ function RespondPanel({
   });
 
   return (
-    <div className="prompt">
-      <div className="prompt-title">
+    <div>
+      <div className="sheet-text">
         相手が「{top ? getCard(top.defId).name : '?'}」を発動しました。打ち消しますか？
       </div>
       <div className="prompt-actions">
@@ -823,80 +1007,62 @@ function RespondPanel({
   );
 }
 
-function PendingPanel({
+/** ActionSheet の中身: 支払い方 or 獲得リソースの選択ボタンだけを描画する */
+function PendingModalBody({
   pending,
-  onCancel,
+  pendingNeedsCost,
   onPickCost,
   onPickResource,
   myResources,
 }: {
   pending: NonNullable<Pending>;
-  onCancel: () => void;
+  pendingNeedsCost: boolean;
   onPickCost: (costOption: number) => void;
   onPickResource: (r: ResourceKind) => void;
   myResources: import('../../core/types').Resources;
 }) {
-  let title = '';
-  let needsCost = false;
-  let needsResource = false;
-  let excluded: ResourceKind | undefined;
-
-  if (pending.kind === 'attack') {
-    title = '攻撃対象を選んでください（もう一度タップでキャンセル）';
-  } else if (pending.kind === 'playCard') {
-    needsCost = pending.costOption === undefined;
-    needsResource =
-      !needsCost &&
-      entryEffects(pending.def).some((e) => e.kind === 'gainResource') &&
-      !pending.resource;
-    excluded = needsCost ? undefined : paidResourceOf(costOptions(pending.def)[pending.costOption!]);
-    title = needsCost
-      ? `${pending.def.name}: 支払うリソースを選んでください`
-      : needsResource
-        ? `${pending.def.name}: 獲得するリソースを選んでください`
-        : `${pending.def.name}: 対象を選んでください`;
-  } else {
-    const ability = pending.def.activated;
-    needsResource = ability?.kind === 'convertResource' && !pending.resource;
-    excluded = ability ? paidResourceOf(ability.cost) : undefined;
-    title = needsResource
-      ? `${pending.def.name}: 変換先のリソースを選んでください`
-      : `${pending.def.name}: 対象を選んでください`;
+  if (pendingNeedsCost && pending.kind === 'playCard') {
+    return (
+      <div className="prompt-actions">
+        {costOptions(pending.def).map((c, i) =>
+          canPay(myResources, c) ? (
+            <button key={i} className="btn" onClick={() => onPickCost(i)}>
+              {formatCost(c)}
+            </button>
+          ) : null,
+        )}
+      </div>
+    );
   }
 
+  const excluded =
+    pending.kind === 'playCard'
+      ? paidResourceOf(costOptions(pending.def)[pending.costOption!])
+      : pending.kind === 'activate' && pending.def.activated
+        ? paidResourceOf(pending.def.activated.cost)
+        : undefined;
+
   return (
-    <div className="prompt">
-      <div className="prompt-title">{title}</div>
-      {needsCost && pending.kind === 'playCard' ? (
-        <div className="prompt-actions">
-          {costOptions(pending.def).map((c, i) =>
-            canPay(myResources, c) ? (
-              <button key={i} className="btn" onClick={() => onPickCost(i)}>
-                {formatCost(c)}
-              </button>
-            ) : null,
-          )}
-        </div>
-      ) : needsResource ? (
-        <div className="prompt-actions">
-          {RESOURCE_KINDS.filter((r) => r !== excluded).map((r) => (
-            <button key={r} className="btn" onClick={() => onPickResource(r)}>
-              <ResourceIcon kind={r} size={14} />
-              {RESOURCE_LABEL[r]}
-              <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>({myResources[r]})</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <button className="btn btn-block" onClick={onCancel}>
-          <X size={14} /> キャンセル
+    <div className="prompt-actions">
+      {RESOURCE_KINDS.filter((r) => r !== excluded).map((r) => (
+        <button key={r} className="btn" onClick={() => onPickResource(r)}>
+          <ResourceIcon kind={r} size={14} />
+          {RESOURCE_LABEL[r]}
+          <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>({myResources[r]})</span>
         </button>
-      )}
+      ))}
     </div>
   );
 }
 
 function LogPanel({ state, onClose }: { state: GameState; onClose: () => void }) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // 最新が下に来る並びにしたうえで、開いた瞬間と新しい行が増えるたびに末尾へ追従する
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  }, [state.log.length]);
+
   return (
     <div className="log-panel">
       <div className="topbar">
@@ -905,16 +1071,13 @@ function LogPanel({ state, onClose }: { state: GameState; onClose: () => void })
           <X size={16} />
         </button>
       </div>
-      <div className="log-list">
-        {state.log
-          .slice()
-          .reverse()
-          .map((entry, i) => (
-            <div key={i} className={entry.player === null ? '' : `p${entry.player}`}>
-              <span style={{ opacity: 0.5 }}>T{entry.turn} </span>
-              {entry.text}
-            </div>
-          ))}
+      <div className="log-list" ref={listRef}>
+        {state.log.map((entry, i) => (
+          <div key={i} className={entry.player === null ? '' : `p${entry.player}`}>
+            <span style={{ opacity: 0.5 }}>T{entry.turn} </span>
+            {entry.text}
+          </div>
+        ))}
       </div>
     </div>
   );
