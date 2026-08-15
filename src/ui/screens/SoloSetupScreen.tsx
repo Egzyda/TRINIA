@@ -12,6 +12,8 @@ import type { DeckSlot } from '../deckStorage';
 
 interface Props {
   slots: DeckSlot[];
+  /** 対局中の表示名。デッキ名ではなくこちらを使う */
+  playerName: string;
   onBack: () => void;
   onStart: (opts: {
     myDeck: string[];
@@ -27,7 +29,7 @@ const DIFFICULTIES: Difficulty[] = ['easy', 'normal', 'hard'];
 /** 相手デッキの選択肢に加える「ランダム」の特殊値。対局開始時に実際のプリセットへ解決する */
 export const RANDOM_FOE_ID = 'random';
 
-export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
+export function SoloSetupScreen({ slots, playerName, onBack, onStart }: Props) {
   const usable = slots.filter((s) => s.cards.length === 20);
   const [myDeckIdx, setMyDeckIdx] = useState(0);
   const [foeDeckId, setFoeDeckId] = useState(DECK_PRESETS[1].id);
@@ -136,7 +138,7 @@ export function SoloSetupScreen({ slots, onBack, onStart }: Props) {
           className="btn btn-primary btn-block"
           disabled={!myDeck}
           onClick={() =>
-            myDeck && onStart({ myDeck: myDeck.cards, myName: myDeck.name, foeDeckId, difficulty, mode })
+            myDeck && onStart({ myDeck: myDeck.cards, myName: playerName, foeDeckId, difficulty, mode })
           }
         >
           <Play size={16} /> 対局開始

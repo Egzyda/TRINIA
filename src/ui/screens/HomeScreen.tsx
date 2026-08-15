@@ -2,13 +2,17 @@
  * ホーム画面（仕様書 3.1）
  * ソロプレイ / 対戦プレイ / デッキ編集 / チュートリアル
  */
-import { BookOpen, Bot, Layers, Users } from 'lucide-react';
+import { useState } from 'react';
+import { BookOpen, Bot, Check, Layers, Pencil, Users } from 'lucide-react';
 import bgHome from '../../../img/bg_home.jpg';
+import { MAX_PLAYER_NAME, normalizePlayerName } from '../playerStorage';
 
 export type Screen = 'home' | 'solo' | 'battle' | 'room' | 'deck' | 'tutorial';
 
 interface Props {
   onNavigate: (screen: Screen) => void;
+  playerName: string;
+  onChangePlayerName: (name: string) => void;
 }
 
 const MENU: Array<{ screen: Screen; title: string; desc: string; icon: React.ReactNode }> = [
@@ -38,7 +42,15 @@ const MENU: Array<{ screen: Screen; title: string; desc: string; icon: React.Rea
   },
 ];
 
-export function HomeScreen({ onNavigate }: Props) {
+export function HomeScreen({ onNavigate, playerName, onChangePlayerName }: Props) {
+  // null のあいだは編集していない。文字列を入れるとリネームシートが開く
+  const [editing, setEditing] = useState<string | null>(null);
+
+  const commit = () => {
+    if (editing !== null) onChangePlayerName(normalizePlayerName(editing));
+    setEditing(null);
+  };
+
   return (
     <div className="screen home-screen">
       {/* 背景イラスト。読みやすさのため上から暗いグラデーションを重ねる */}
@@ -50,6 +62,13 @@ export function HomeScreen({ onNavigate }: Props) {
           <div className="logo">TRINIA</div>
           <div className="sub">TRINITY OF FUND / MANA / AETHER</div>
         </div>
+
+        {/* 対局中の表示名。勝敗理由やログにこの名前が出る */}
+        <button className="player-row" onClick={() => setEditing(playerName)}>
+          <span className="player-label">プレイヤー名</span>
+          <span className="player-value">{playerName}</span>
+          <Pencil size={13} />
+        </button>
 
         {MENU.map((item) => (
           <button key={item.screen} className="menu-card" onClick={() => onNavigate(item.screen)}>
@@ -66,6 +85,34 @@ export function HomeScreen({ onNavigate }: Props) {
           Game-icons.net (CC BY 3.0) / Lucide (ISC)
         </div>
       </div>
+
+      {editing !== null && (
+        <div className="sheet-backdrop" onClick={() => setEditing(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-title" style={{ marginBottom: 10 }}>
+              プレイヤー名を変更
+            </div>
+            <input
+              className="rename-input"
+              value={editing}
+              autoFocus
+              maxLength={MAX_PLAYER_NAME}
+              onChange={(e) => setEditing(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commit();
+              }}
+            />
+            <div className="prompt-actions" style={{ marginTop: 12 }}>
+              <button className="btn" onClick={() => setEditing(null)}>
+                キャンセル
+              </button>
+              <button className="btn btn-primary" onClick={commit}>
+                <Check size={15} /> 決定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -71,6 +71,13 @@ interface HandCardProps {
   card: CardInstance;
   playable: boolean;
   selected: boolean;
+  /**
+   * 捨て札フェイズ中か。
+   * この間は playable が常に false になるため、指定しないと
+   * 「捨てるカードを選べ」と言われている最中に手札全部が
+   * 操作不可の見た目（半透明）になってしまう。
+   */
+  discarding?: boolean;
   onTap: () => void;
 }
 
@@ -80,12 +87,19 @@ interface HandCardProps {
  * 小さいカードを直接タップしてすぐ召喚されると誤操作しやすいための二段階化で、
  * 個別の情報アイコンは廃止した（タップ＝詳細確認、で兼ねられるため）。
  */
-export function HandCard({ card, playable, selected, onTap }: HandCardProps) {
+export function HandCard({ card, playable, selected, discarding, onTap }: HandCardProps) {
   const def = getCard(card.defId);
+  const state = selected
+    ? 'selected'
+    : discarding
+      ? 'discardable'
+      : playable
+        ? 'playable'
+        : 'unplayable';
 
   return (
     <div
-      className={`hand-card ${selected ? 'selected' : playable ? 'playable' : 'unplayable'}`}
+      className={`hand-card ${state}`}
       role="button"
       tabIndex={0}
       onClick={onTap}
