@@ -13,7 +13,8 @@ import { applyAction, playableCards } from '../core/mainPhaseEngine';
 import { nextInt } from '../core/rng';
 import { enumerateAllocations, enumerateMainActions } from './actionEnumerator';
 import { evaluate } from './evaluate';
-import type { GameAction, GameState, PlayerId } from '../core/types';
+import { RESOURCE_KINDS } from '../core/types';
+import type { GameAction, GameState, PlayerId, ResourceKind } from '../core/types';
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -119,10 +120,7 @@ export function decideBid(state: GameState, me: PlayerId, ctx: AiContext): numbe
 // ---------------------------------------------------------------------------
 
 export function decideAllocation(state: GameState, me: PlayerId, ctx: AiContext): GameAction {
-  if (ctx.difficulty === 'easy') {
-    // 資金一律優先（仕様書 4.2 EASY）
-    return { type: 'allocate', fund: state.rules.FREE_POINTS, mana: 0, aether: 0, draw: 0 };
-  }
+  if (ctx.difficulty === 'easy') return easyAllocation(state, me);
 
   const options = enumerateAllocations(state.rules.FREE_POINTS, state.rules.DRAW_COST);
 
@@ -153,6 +151,33 @@ export function decideAllocation(state: GameState, me: PlayerId, ctx: AiContext)
     }
   }
   return best;
+}
+
+/**
+ * EASY: 資金優先を基本にしつつ、手札が資金以外中心のデッキでも
+ * 詰まないよう最低限の必要色だけは見る（先読みはしない素朴な実装）。
+ *
+ * 「資金一律優先」（仕様書 4.2）を文字どおり実装すると、
+ * 魔力・エーテル中心のデッキと当たったときに手札が一切支払えないまま、
+ * 何ターンも資金だけ貯め続けて「相手が何もしてこない」状態になってしまう
+ * バグがあった。手札全体で最も不足している色に振るだけの最小限の調整で回避する。
+ */
+function easyAllocation(state: GameState, me: PlayerId): GameAction {
+  const p = state.players[me];
+  const deficit: Record<ResourceKind, number> = { fund: 0, mana: 0, aether: 0 };
+  for (const card of p.hand) {
+    const def = getCard(card.defId);
+    deficit.fund += Math.max(0, def.cost.fund - p.resources.fund);
+    deficit.mana += Math.max(0, def.cost.mana - p.resources.mana);
+    deficit.aether += Math.max(0, def.cost.aether - p.resources.aether);
+  }
+  // 同点なら資金を優先する（仕様書どおりの既定挙動）
+  let best: ResourceKind = 'fund';
+  for (const k of RESOURCE_KINDS) if (deficit[k] > deficit[best]) best = k;
+
+  const alloc: Record<ResourceKind, number> = { fund: 0, mana: 0, aether: 0 };
+  alloc[best] = state.rules.FREE_POINTS;
+  return { type: 'allocate', ...alloc, draw: 0 };
 }
 
 /**

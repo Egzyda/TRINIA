@@ -44,31 +44,26 @@ export function HomeScreen({ onNavigate }: Props) {
       {/* 背景イラスト。読みやすさのため上から暗いグラデーションを重ねる */}
       <div className="home-bg" style={{ backgroundImage: `url(${bgHome})` }} aria-hidden="true" />
       <div className="home-bg-veil" aria-hidden="true" />
-      <div className="screen-scroll">
-        <div className="home">
-          <div className="home-title">
-            <div className="logo">TRINIA</div>
-            <div className="sub">TRINITY OF FUND / MANA / AETHER</div>
-          </div>
+      {/* スクロールさせず、1画面に収まるレイアウトにする */}
+      <div className="home">
+        <div className="home-title">
+          <div className="logo">TRINIA</div>
+          <div className="sub">TRINITY OF FUND / MANA / AETHER</div>
+        </div>
 
-          {MENU.map((item) => (
-            <button key={item.screen} className="menu-card" onClick={() => onNavigate(item.screen)}>
-              <span className="mc-icon">{item.icon}</span>
-              <span className="mc-body">
-                <span className="mc-title">{item.title}</span>
-                <br />
-                <span className="mc-desc">{item.desc}</span>
-              </span>
-            </button>
-          ))}
-
-          <div style={{ marginTop: 'auto', paddingTop: 20, textAlign: 'center' }}>
-            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
-              カードイラストのフォールバックに Game-icons.net (CC BY 3.0) 、
+        {MENU.map((item) => (
+          <button key={item.screen} className="menu-card" onClick={() => onNavigate(item.screen)}>
+            <span className="mc-icon">{item.icon}</span>
+            <span className="mc-body">
+              <span className="mc-title">{item.title}</span>
               <br />
-              UIアイコンに Lucide (ISC) を使用しています。
+              <span className="mc-desc">{item.desc}</span>
             </span>
-          </div>
+          </button>
+        ))}
+
+        <div className="home-credit">
+          Game-icons.net (CC BY 3.0) / Lucide (ISC)
         </div>
       </div>
     </div>

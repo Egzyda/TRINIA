@@ -3,7 +3,7 @@
  * 20枚 / 同名2枚まで / 最大3スロット保存。
  */
 import { useMemo, useState } from 'react';
-import { Check, ChevronLeft, Minus, Plus } from 'lucide-react';
+import { Check, ChevronLeft, Minus, Pencil, Plus } from 'lucide-react';
 import { CardArt } from '../components/CardArt';
 import { ALL_CARDS } from '../../cards/cardFactory';
 import { formatCost } from '../../cards/baseCard';
@@ -28,6 +28,7 @@ const FILTERS: Array<{ id: Faction | 'all'; label: string }> = [
 export function DeckScreen({ slots, onChange, onBack }: Props) {
   const [slotIdx, setSlotIdx] = useState(0);
   const [filter, setFilter] = useState<Faction | 'all'>('all');
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   const slot = slots[slotIdx] ?? { id: 'slot1', name: 'デッキ1', cards: [] };
   const counts = useMemo(() => {
@@ -42,6 +43,12 @@ export function DeckScreen({ slots, onChange, onBack }: Props) {
   const update = (cards: string[]) => {
     const next = slots.slice();
     next[slotIdx] = { ...slot, cards };
+    onChange(next);
+  };
+
+  const rename = (name: string) => {
+    const next = slots.slice();
+    next[slotIdx] = { ...slot, name: name.trim() || slot.name };
     onChange(next);
   };
 
@@ -80,6 +87,17 @@ export function DeckScreen({ slots, onChange, onBack }: Props) {
         ))}
       </div>
 
+      <div className="deck-name-row">
+        <span className="deck-name-current">{slot.name}</span>
+        <button
+          className="icon-btn"
+          aria-label="デッキ名を変更"
+          onClick={() => setRenaming(slot.name)}
+        >
+          <Pencil size={13} />
+        </button>
+      </div>
+
       <div className="deck-tabs">
         {FILTERS.map((f) => (
           <button
@@ -97,7 +115,7 @@ export function DeckScreen({ slots, onChange, onBack }: Props) {
           {visible.map((def) => {
             const n = counts.get(def.id) ?? 0;
             return (
-              <div className="card-row" key={def.id}>
+              <div className={`card-row ${n > 0 ? 'owned' : ''}`} key={def.id}>
                 <span className="cr-art">
                   <CardArt def={def} size={22} />
                 </span>
@@ -147,6 +165,43 @@ export function DeckScreen({ slots, onChange, onBack }: Props) {
           <Check size={15} /> 保存
         </button>
       </div>
+
+      {renaming !== null && (
+        <div className="sheet-backdrop" onClick={() => setRenaming(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-title" style={{ marginBottom: 10 }}>
+              デッキ名を変更
+            </div>
+            <input
+              className="rename-input"
+              value={renaming}
+              autoFocus
+              maxLength={20}
+              onChange={(e) => setRenaming(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  rename(renaming);
+                  setRenaming(null);
+                }
+              }}
+            />
+            <div className="prompt-actions" style={{ marginTop: 12 }}>
+              <button className="btn" onClick={() => setRenaming(null)}>
+                キャンセル
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  rename(renaming);
+                  setRenaming(null);
+                }}
+              >
+                <Check size={15} /> 決定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
