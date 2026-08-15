@@ -511,14 +511,19 @@ function doAttack(state: GameState, attackerUid: string, target: TargetRef): str
 
   if (target.kind === 'base') {
     const dealt = damageBase(state, target.player, power);
-    log(state, state.active, `${attackerDef.name} が敵拠点に${dealt}ダメージ。`);
+    log(state, state.active, `${attackerDef.name} が敵拠点に${dealt}ダメージ。`, 'attack');
   } else if (target.kind === 'facility') {
     const t = findFacility(state, target.uid);
     if (!t) return '対象の施設が存在しません';
     // 【攻城】施設へのダメージは2倍
     const raw = attackerDef.keywords.includes('siege') ? power * 2 : power;
     const dealt = damageFacility(state, t.facility, raw);
-    log(state, state.active, `${attackerDef.name} が ${getCard(t.facility.defId).name} に${dealt}ダメージ。`);
+    log(
+      state,
+      state.active,
+      `${attackerDef.name} が ${getCard(t.facility.defId).name} に${dealt}ダメージ。`,
+      'attack',
+    );
   } else if (target.kind === 'unit') {
     const t = findUnit(state, target.uid);
     if (!t) return '対象のユニットが存在しません';
@@ -535,13 +540,16 @@ function doAttack(state: GameState, attackerUid: string, target: TargetRef): str
       state.active,
       `${attackerDef.name}(${power}) と ${defenderDef.name}(${counterPower}) が交戦。` +
         `${defenderDef.name}に${dealt}、${attackerDef.name}に${taken}ダメージ。`,
+      'attack',
     );
 
     // 【貫通】撃破時の超過ダメージが拠点へ抜ける
     if (attackerDef.keywords.includes('trample') && dealt > defenderHpBefore) {
       const overflow = dealt - defenderHpBefore;
       const through = damageBase(state, defender.owner, overflow, { ignoreReduction: true });
-      if (through > 0) log(state, state.active, `【貫通】超過${through}ダメージが敵拠点へ抜けた。`);
+      if (through > 0) {
+        log(state, state.active, `【貫通】超過${through}ダメージが敵拠点へ抜けた。`, 'attack');
+      }
     }
   }
 

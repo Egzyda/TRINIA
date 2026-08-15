@@ -72,10 +72,15 @@ interface HandCardProps {
   playable: boolean;
   selected: boolean;
   onTap: () => void;
-  onInfo: () => void;
 }
 
-export function HandCard({ card, playable, selected, onTap, onInfo }: HandCardProps) {
+/**
+ * 手札カード本体。タップすると（親コンポーネント側で）まず詳細シートを開き、
+ * そこにある実行ボタンを押してはじめてプレイが確定する。
+ * 小さいカードを直接タップしてすぐ召喚されると誤操作しやすいための二段階化で、
+ * 個別の情報アイコンは廃止した（タップ＝詳細確認、で兼ねられるため）。
+ */
+export function HandCard({ card, playable, selected, onTap }: HandCardProps) {
   const def = getCard(card.defId);
 
   return (
@@ -92,7 +97,6 @@ export function HandCard({ card, playable, selected, onTap, onInfo }: HandCardPr
       }}
     >
       <span className="hc-cost">{formatCost(def.cost)}</span>
-      <InfoButton onInfo={onInfo} className="hc-info" />
       <span className="hc-art">
         <CardArt def={def} size={26} />
       </span>
@@ -116,11 +120,19 @@ interface UnitChipProps {
   state: GameState;
   mode: 'idle' | 'selectable' | 'targetable' | 'selected';
   hit?: boolean;
+  /** 攻撃した瞬間だけ弾ませて「何が攻撃したか」を分かりやすくする */
+  lunge?: boolean;
+  /**
+   * 「攻撃済みで薄く見せる」のは自軍ユニットの操作可否を示すための演出。
+   * hasAttackedは相手ユニットが「対象にできるか」とは無関係なので、
+   * 呼び出し側（自軍描画箇所）だけがtrueを渡す。
+   */
+  exhausted?: boolean;
   onTap: () => void;
   onInfo: () => void;
 }
 
-export function UnitChip({ unit, state, mode, hit, onTap, onInfo }: UnitChipProps) {
+export function UnitChip({ unit, state, mode, hit, lunge, exhausted, onTap, onInfo }: UnitChipProps) {
   const def = getCard(unit.defId);
   const frozen = unit.frozenUntilTurn !== undefined && state.turn <= unit.frozenUntilTurn;
   const attack = effectiveAttack(unit);
@@ -128,7 +140,7 @@ export function UnitChip({ unit, state, mode, hit, onTap, onInfo }: UnitChipProp
 
   return (
     <div
-      className={`chip faction-${def.faction} ${mode} ${unit.hasAttacked ? 'exhausted' : ''} ${hit ? 'hit-flash' : ''}`}
+      className={`chip faction-${def.faction} ${mode} ${exhausted ? 'exhausted' : ''} ${hit ? 'hit-flash' : ''} ${lunge ? 'attack-lunge' : ''}`}
       role="button"
       tabIndex={0}
       onClick={onTap}
@@ -141,6 +153,7 @@ export function UnitChip({ unit, state, mode, hit, onTap, onInfo }: UnitChipProp
     >
       <InfoButton onInfo={onInfo} className="chip-info" />
       <span className="chip-badges">
+        {exhausted && <span className="badge done">済</span>}
         {frozen && <span className="badge frozen">凍結</span>}
         {def.keywords.includes('taunt') && <span className="badge">挑発</span>}
         {def.keywords.includes('evasive') && <span className="badge">抜</span>}
@@ -216,7 +229,24 @@ export function FacilityChip({ facility, mode, hit, onTap, onInfo }: FacilityChi
 // カード詳細（情報アイコンのタップで開くボトムシート）
 // ---------------------------------------------------------------------------
 
-export function CardSheet({ def, onClose }: { def: CardDef; onClose: () => void }) {
+interface CardSheetAction {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  /** ボタンが押せない理由（手札シートで「いま出せない」を伝える） */
+  reason?: string;
+}
+
+export function CardSheet({
+  def,
+  onClose,
+  action,
+}: {
+  def: CardDef;
+  onClose: () => void;
+  /** 指定すると詳細の下に実行ボタンを出す（手札を一度タップで詳細確認→ボタンで確定、の導線用） */
+  action?: CardSheetAction;
+}) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
@@ -238,6 +268,20 @@ export function CardSheet({ def, onClose }: { def: CardDef; onClose: () => void 
           </button>
         </div>
         <div className="sheet-text">{def.text}</div>
+        {action && (
+          <>
+            <button
+              className="btn btn-primary btn-block"
+              disabled={action.disabled}
+              onClick={action.onClick}
+            >
+              {action.label}
+            </button>
+            {action.disabled && action.reason && (
+              <div className="sheet-action-reason">{action.reason}</div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
