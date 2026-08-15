@@ -122,7 +122,7 @@ export const DECK_PRESETS: DeckPreset[] = [
       ...x('aether_barrier', 2),
       ...x('aether_regen_guardian', 2),
       ...x('aether_immune_beast', 2),
-      ...x('mana_freeze', 2),
+      ...x('aether_sentinel', 2),
       ...x('mana_inferno', 2),
       ...x('mana_greater_flame_bolt', 2),
       ...x('mana_firestorm', 2),

@@ -212,8 +212,8 @@
         "mana": 0,
         "aether": 0
       },
-      "attack": 5,
-      "hp": 5,
+      "attack": 4,
+      "hp": 4,
       "keywords": [],
       "text": "特殊な能力は持たないが、純粋に強力な精鋭兵士。",
       "image_path": "assets/cards/fund_elite_soldier.png",
@@ -605,6 +605,26 @@
       "image_path": "assets/cards/aether_regen_guardian.png",
       "icon": "GiRegeneration",
       "regenerateUses": 1
+    },
+    {
+      "id": "aether_sentinel",
+      "no": 37,
+      "name": "次元の番人",
+      "type": "unit",
+      "faction": "aether",
+      "cost": {
+        "fund": 0,
+        "mana": 0,
+        "aether": 1
+      },
+      "attack": 1,
+      "hp": 3,
+      "keywords": [
+        "taunt"
+      ],
+      "text": "【挑発】相手はこのユニットを優先して攻撃しなければならない。エーテル1で出せる最序盤の壁役。",
+      "image_path": "assets/cards/aether_sentinel.png",
+      "icon": "GiShield"
     },
     {
       "id": "aether_dimensional_jar",
