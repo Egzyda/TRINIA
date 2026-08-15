@@ -476,16 +476,14 @@ export function BattleScreen({ config, onExit }: Props) {
   if (pendingIsTargeting && pending) {
     const targetLabel = pending.kind === 'attack' ? '攻撃対象' : `${pending.def.name}: 対象`;
     actionBar = { text: `${targetLabel}を選んでください`, onCancel: cancelPending };
-  } else if (state.phase === 'discard' && isMyTurn) {
-    actionBar = {
-      text: `手札を${discardNeed}枚選択（${discardPick.length}/${discardNeed}）`,
-      confirm: {
-        label: '捨てる',
-        disabled: discardPick.length !== discardNeed,
-        onClick: () => dispatch({ type: 'discard', uids: discardPick }),
-      },
-    };
   }
+
+  /*
+   * 捨て札は「指示に気づかないまま進行が止まったように見える」原因になっていたため、
+   * 細い案内バーではなく専用のモーダルで出す。背景が手札バーの手前で止まるので、
+   * 手札はそのまま見えて選択もできる。
+   */
+  const discardPrompt = state.phase === 'discard' && isMyTurn;
 
   return (
     <div className="screen battle" ref={screenRef}>
@@ -659,6 +657,7 @@ export function BattleScreen({ config, onExit }: Props) {
                   discardPick.includes(card.uid) ||
                   handSheetUid === card.uid
                 }
+                discarding={discardPrompt}
                 onTap={() => tapHandCard(card.uid)}
               />
             ))}
@@ -742,6 +741,24 @@ export function BattleScreen({ config, onExit }: Props) {
       {state.phase === 'respond' && state.priority === me && (
         <ActionSheet title="相手の発動に応答">
           <RespondPanel state={state} me={me} dispatch={dispatch} />
+        </ActionSheet>
+      )}
+
+      {discardPrompt && (
+        <ActionSheet title={`手札が上限（${state.rules.HAND_LIMIT}枚）を超えています`}>
+          <div className="sheet-text">
+            下の手札から <strong>{discardNeed}枚</strong> タップして選び、「捨てる」を押してください。
+          </div>
+          <div className="discard-count">
+            選択中 <strong>{discardPick.length}</strong> / {discardNeed}
+          </div>
+          <button
+            className="btn btn-primary btn-block"
+            disabled={discardPick.length !== discardNeed}
+            onClick={() => dispatch({ type: 'discard', uids: discardPick })}
+          >
+            捨てる
+          </button>
         </ActionSheet>
       )}
 

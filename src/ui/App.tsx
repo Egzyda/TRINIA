@@ -10,6 +10,7 @@ import { DeckScreen } from './screens/DeckScreen';
 import { RoomScreen } from './screens/RoomScreen';
 import { TutorialScreen } from './screens/TutorialScreen';
 import { loadSlots, saveSlots, type DeckSlot } from './deckStorage';
+import { loadPlayerName, savePlayerName } from './playerStorage';
 import { DECK_PRESETS, getPreset } from '../cards/decks';
 import { RANDOM_FOE_ID } from './screens/SoloSetupScreen';
 import type { BattleConfig } from './useBattle';
@@ -18,9 +19,11 @@ import './theme.css';
 export function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [slots, setSlots] = useState<DeckSlot[]>(() => loadSlots());
+  const [playerName, setPlayerName] = useState<string>(() => loadPlayerName());
   const [battleConfig, setBattleConfig] = useState<BattleConfig | null>(null);
 
   useEffect(() => saveSlots(slots), [slots]);
+  useEffect(() => savePlayerName(playerName), [playerName]);
 
   if (screen === 'battle' && battleConfig) {
     return (
@@ -32,11 +35,18 @@ export function App() {
 
   return (
     <div className="app">
-      {screen === 'home' && <HomeScreen onNavigate={setScreen} />}
+      {screen === 'home' && (
+        <HomeScreen
+          onNavigate={setScreen}
+          playerName={playerName}
+          onChangePlayerName={setPlayerName}
+        />
+      )}
 
       {screen === 'solo' && (
         <SoloSetupScreen
           slots={slots}
+          playerName={playerName}
           onBack={() => setScreen('home')}
           onStart={({ myDeck, myName, foeDeckId, difficulty, mode }) => {
             const foe =
