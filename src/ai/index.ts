@@ -112,7 +112,15 @@ export function decideBid(state: GameState, me: PlayerId, ctx: AiContext): numbe
   const base = Math.round(state.rules.MAX_BID * (0.15 + speed * 0.7));
   const spread = ctx.difficulty === 'hard' ? 3 : 7;
   const jitter = rand(ctx, spread * 2 + 1) - spread;
-  return Math.max(0, Math.min(state.rules.MAX_BID, base + jitter));
+
+  // 実測(tools/auction.ts)では、デッキごとの先攻価値のばらつきが
+  // このヒューリスティックの想定より大きく、特にコントロール系デッキでは
+  // 均衡落札額が拠点HPの1割程度しかないのに、この式は3割近くまで積んでしまっていた。
+  // 拠点HPを大きく失うと後半戦がそのまま不利になるため、
+  // 自陣拠点HPの3割を絶対的な上限として、過大な提示で試合そのものを
+  // 投げてしまわないようにする。
+  const hpCap = Math.floor(state.rules.BASE_HP * 0.3);
+  return Math.max(0, Math.min(state.rules.MAX_BID, hpCap, base + jitter));
 }
 
 // ---------------------------------------------------------------------------

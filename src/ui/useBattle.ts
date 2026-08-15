@@ -70,20 +70,19 @@ export function useBattle(config: BattleConfig): Battle {
   const [aiThinking, setAiThinking] = useState(false);
   const aiRef = useRef<AiContext>(makeAi(config.difficulty, config.seed ^ 0x51ed270b));
 
+  // setState の関数更新子は同期的には実行されないため、戻り値用の ok を
+  // クロージャ経由で読むと常に古い値（false）になる。state を直接使って
+  // 同期的に判定することで、呼び出し側の if (dispatch(...)) が正しく動くようにする。
   const dispatch = useCallback((action: GameAction): boolean => {
-    let ok = false;
-    setState((prev) => {
-      const result = applyAction(prev, action);
-      ok = result.ok;
-      if (!result.ok) {
-        setError(result.error ?? '不正な操作です');
-        return prev;
-      }
-      setError(null);
-      return result.state;
-    });
-    return ok;
-  }, []);
+    const result = applyAction(state, action);
+    if (!result.ok) {
+      setError(result.error ?? '不正な操作です');
+      return false;
+    }
+    setError(null);
+    setState(result.state);
+    return true;
+  }, [state]);
 
   const restart = useCallback(() => {
     aiRef.current = makeAi(config.difficulty, (Date.now() ^ 0x51ed270b) | 0);
