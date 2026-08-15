@@ -93,6 +93,42 @@ export const DECK_PRESETS: DeckPreset[] = [
       ...x('aether_barrier', 2),
     ],
   },
+  {
+    id: 'elite_fund_splash',
+    name: '精鋭部隊（資金ミッドレンジ）',
+    description: '金鉱山で伸ばしつつ上級兵種で殴る中速構築。魔力と魔導砲を軽く挟んで除去を持つ。',
+    faction: 'fund',
+    cards: [
+      ...x('fund_light_attacker', 2),
+      ...x('fund_archer', 2),
+      ...x('fund_captain', 2),
+      ...x('fund_elite_soldier', 2),
+      ...x('fund_elite_archer', 2),
+      ...x('fund_elite_guard', 2),
+      ...x('fund_gold_mine', 2),
+      ...x('fund_armory', 2),
+      ...x('mana_flame_bolt', 2),
+      ...x('hybrid_arcane_cannon', 2),
+    ],
+  },
+  {
+    id: 'aether_spellchain',
+    name: '深淵詠唱（エーテル魔法）',
+    description: 'エーテルを伸ばして次元の壺で魔力に変換し、大魔法を連打して逆転を狙う構築。再生と完全耐性で場を支える。',
+    faction: 'aether',
+    cards: [
+      ...x('aether_power_plant', 2),
+      ...x('aether_dimensional_jar', 2),
+      ...x('aether_barrier', 2),
+      ...x('aether_regen_guardian', 2),
+      ...x('aether_immune_beast', 2),
+      ...x('mana_freeze', 2),
+      ...x('mana_inferno', 2),
+      ...x('mana_greater_flame_bolt', 2),
+      ...x('mana_firestorm', 2),
+      ...x('mana_great_wisdom', 2),
+    ],
+  },
 ];
 
 export function getPreset(id: string): DeckPreset {

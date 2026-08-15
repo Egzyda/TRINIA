@@ -32,12 +32,12 @@
         "mana": 0,
         "aether": 0
       },
-      "attack": 1,
+      "attack": 0,
       "hp": 8,
       "keywords": [
         "taunt"
       ],
-      "text": "【挑発】相手はこのユニットを優先して攻撃しなければならない。",
+      "text": "【挑発】相手はこのユニットを優先して攻撃しなければならない。攻撃力0のため反撃も行わない、純粋な壁役。",
       "image_path": "assets/cards/fund_heavy_guard.png",
       "icon": "GiShieldBash"
     },
@@ -135,13 +135,13 @@
       "type": "facility",
       "faction": "fund",
       "cost": {
-        "fund": 3,
+        "fund": 2,
         "mana": 0,
         "aether": 0
       },
-      "hp": 5,
+      "hp": 6,
       "keywords": [],
-      "text": "起動：資金1を払い、自軍ユニット1体の攻撃力を永続+1（ターン1回）。",
+      "text": "起動：資金1を払い、自軍ユニット1体の攻撃力とHPを永続+1（ターン1回）。",
       "image_path": "assets/cards/fund_armory.png",
       "icon": "GiAnvilImpact",
       "activated": {
@@ -152,6 +152,7 @@
           "aether": 0
         },
         "attack": 1,
+        "hp": 1,
         "target": "friendlyUnit",
         "perTurn": 1
       }

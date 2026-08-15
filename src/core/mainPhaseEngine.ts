@@ -645,7 +645,13 @@ function doActivate(state: GameState, action: ActivateAction): string | undefine
       if (!t || t.owner !== state.active) return '対象の自軍ユニットを指定してください';
       payResources(p, ability.cost);
       t.unit.attack += ability.attack;
-      log(state, state.active, `${def.name}: ${getCard(t.unit.defId).name} の攻撃力が永続+${ability.attack}。`);
+      let msg = `${def.name}: ${getCard(t.unit.defId).name} の攻撃力が永続+${ability.attack}`;
+      if (ability.hp) {
+        t.unit.maxHp += ability.hp;
+        t.unit.hp += ability.hp;
+        msg += `、HPが永続+${ability.hp}`;
+      }
+      log(state, state.active, `${msg}。`);
       break;
     }
     case 'convertResource': {

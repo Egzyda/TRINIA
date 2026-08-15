@@ -96,6 +96,7 @@ export type CardActivated =
       kind: 'buffUnitPermanent';
       cost: Resources;
       attack: number;
+      hp?: number;
       target: TargetSpec;
       perTurn: number;
     }
