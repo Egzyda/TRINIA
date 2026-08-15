@@ -774,7 +774,7 @@ export function BattleScreen({ config, onExit }: Props) {
       {state.winner !== null && (
         <div className="result">
           <div className={`verdict ${state.winner === me ? 'win' : 'lose'}`}>
-            {state.winner === me ? 'WIN' : 'LOSE'}
+            {state.winner === me ? '勝利' : '敗北'}
           </div>
           <div className="reason">{state.winReason}</div>
           {/*
