@@ -982,18 +982,53 @@ button {
 
 /* --- カード詳細 --- */
 
+/* カード詳細。必須選択モーダル(.action-backdrop)より手前に出す */
 .sheet-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(4, 6, 10, 0.7);
-  z-index: 40;
+  z-index: 44;
   display: flex;
   align-items: flex-end;
 }
 
-/* オークション・分配・応答などの必須選択は、カード詳細より手前に出す */
+/*
+ * オークション・分配・応答などの必須選択モーダル。
+ *
+ * 背景を下部操作エリア(--control-h)の分だけ手前で止めることで、
+ * 「リソース配分中に手札が見えない」状態を避ける。
+ * シートは flex-end なので手札バーのすぐ上に載る。
+ */
 .action-backdrop {
   z-index: 42;
+  bottom: var(--control-h, 0px);
+  background: rgba(4, 6, 10, 0.62);
+}
+
+.action-backdrop .sheet {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.action-backdrop .sheet-head {
+  margin-bottom: 8px;
+}
+
+/* 盤面確認モード: 背景を透かして中身だけ畳む（見出しと戻すボタンは残す） */
+.action-backdrop.peek {
+  background: transparent;
+  pointer-events: none;
+}
+
+.action-backdrop.peek .sheet {
+  pointer-events: auto;
+  background: rgba(15, 20, 28, 0.92);
+}
+
+.action-backdrop.peek .sheet-body {
+  display: none;
 }
 
 .sheet {
@@ -1103,6 +1138,84 @@ button {
   font-size: 12px;
   color: var(--text-dim);
   line-height: 1.6;
+}
+
+/* --- 拠点被弾の全画面エフェクト --- */
+
+/*
+ * 拠点ダメージは勝敗に直結するので、チップ単位の点滅では見落とす。
+ * 画面全体を縁取るように光らせ、被弾量を中央に出す。
+ * pointer-events:none なので操作は一切妨げない。
+ */
+.base-damage {
+  position: absolute;
+  inset: 0;
+  z-index: 36;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  animation: base-damage-fade 0.9s ease-out forwards;
+}
+
+.base-damage.me {
+  background: radial-gradient(ellipse at center, rgba(255, 95, 109, 0) 42%, rgba(255, 95, 109, 0.55) 100%);
+}
+
+.base-damage.foe {
+  background: radial-gradient(ellipse at center, rgba(63, 214, 138, 0) 42%, rgba(63, 214, 138, 0.45) 100%);
+}
+
+.base-damage-value {
+  font-size: 54px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
+  animation: base-damage-pop 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+.base-damage.me .base-damage-value {
+  color: #ff8f97;
+}
+
+.base-damage.foe .base-damage-value {
+  color: #7dffb0;
+}
+
+.base-damage-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+@keyframes base-damage-fade {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes base-damage-pop {
+  0% {
+    transform: scale(0.5);
+  }
+  45% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* --- 出来事トースト（AIのターンや効果解決を一瞬だけ知らせる） --- */
@@ -1378,33 +1491,114 @@ button {
   line-height: 1.4;
 }
 
-.chip-row {
-  display: flex;
+/*
+ * 設定画面の選択UI。
+ * 以前は幅の違うピルを折り返していたため行がガタついていた。
+ * 等幅グリッドに揃えることで、選択肢の数が変わっても整列が崩れない。
+ */
+.seg {
+  display: grid;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
-.chip-btn {
-  display: inline-flex;
+.seg-btn {
+  padding: 11px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seg-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04101f;
+}
+
+.pick-list {
+  display: grid;
+  gap: 6px;
+}
+
+.pick-row {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 9px 14px;
-  border-radius: 999px;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.pick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pick-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 10px;
+  border-radius: var(--radius-sm);
   background: var(--bg-panel);
   border: 1px solid var(--line);
   font-size: 12.5px;
   font-weight: 600;
+  text-align: left;
+}
+
+.pick-row.active,
+.pick-cell.active {
+  border-color: var(--accent);
+  background: rgba(90, 169, 255, 0.16);
+  color: var(--text);
+}
+
+.pick-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.chip-btn:active {
-  background: var(--bg-panel-2);
+.pick-meta {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 500;
 }
 
-.chip-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #04101f;
+/* 属性の色をひと目で分かるようにする小さな点 */
+.fac-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.fac-fund {
+  background: var(--fund);
+}
+.fac-mana {
+  background: var(--mana);
+}
+.fac-aether {
+  background: var(--aether);
+}
+.fac-hybrid {
+  background: var(--hybrid);
 }
 
 /* ------------------------------------------------------------------ */

@@ -10,7 +10,7 @@
  * 操作要素は下1/3に集約し、ターン終了は右下の親指位置に置く。
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, Heart, Minus, Plus, ScrollText, Swords, X } from 'lucide-react';
+import { ChevronLeft, Eye, EyeOff, Heart, Minus, Plus, ScrollText, Swords, X } from 'lucide-react';
 import { CardSheet, FacilityChip, HandCard, ResourceIcon, UnitChip } from '../components/pieces';
 import { useBattle, type BattleConfig } from '../useBattle';
 import { getCard } from '../../cards/cardFactory';
@@ -78,6 +78,25 @@ export function BattleScreen({ config, onExit }: Props) {
   const foePlayer = state.players[foe];
   const isMyTurn = state.active === me;
 
+  /*
+   * 下部操作エリアの高さを CSS 変数に流す。
+   * モーダル（ActionSheet）の背景をこの高さの分だけ手前で止めることで、
+   * 「リソース配分中に手札が見えない」問題を解消する。
+   * 高さは固定だが、端末のセーフエリア次第で変わるので実測して渡す。
+   */
+  const screenRef = useRef<HTMLDivElement>(null);
+  const controlRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const control = controlRef.current;
+    const screen = screenRef.current;
+    if (!control || !screen) return;
+    const apply = () => screen.style.setProperty('--control-h', `${control.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(control);
+    return () => ro.disconnect();
+  }, []);
+
   // フェイズが変わったら進行中の操作をリセットする
   useEffect(() => {
     setPending(null);
@@ -134,6 +153,28 @@ export function BattleScreen({ config, onExit }: Props) {
     );
   };
 
+  /*
+   * 拠点被弾の全画面エフェクト。
+   * 同じターンに複数回被弾することがあるので、直近の分をまとめて出す。
+   */
+  const [baseDamage, setBaseDamage] = useState<{ side: 'me' | 'foe'; amount: number; seq: number } | null>(
+    null,
+  );
+  const baseDamageTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const baseDamageSeqRef = useRef(0);
+  const showBaseDamage = (side: 'me' | 'foe', amount: number) => {
+    if (amount <= 0) return;
+    setBaseDamage((prev) => ({
+      side,
+      // 連続被弾は合算して見せる（別々に出すと一瞬すぎて読めない）
+      amount: prev && prev.side === side ? prev.amount + amount : amount,
+      seq: ++baseDamageSeqRef.current,
+    }));
+    clearTimeout(baseDamageTimeoutRef.current);
+    baseDamageTimeoutRef.current = setTimeout(() => setBaseDamage(null), 900);
+  };
+  useEffect(() => () => clearTimeout(baseDamageTimeoutRef.current), []);
+
   // 対局ログの新着分をトースト表示する（攻撃は上のエフェクトで分かるのでここでは出さない）
   const prevLogLenRef = useRef(0);
   const [toasts, setToasts] = useState<{ id: number; text: string; tone: 'me' | 'foe' | 'sys' | 'error' }[]>([]);
@@ -151,15 +192,26 @@ export function BattleScreen({ config, onExit }: Props) {
     );
   };
 
+  const prevPhaseRef = useRef(state.phase);
   useEffect(() => {
     const prevHp = prevHpRef.current;
     const nextHp = new Map<string, number>();
     const prevAtk = prevAttackedRef.current;
     const nextAtk = new Set<string>();
+    /*
+     * オークション解決時は「先攻権の支払い」で拠点HPが減るが、これは被弾ではない。
+     * 対局開始直後に大きな赤いエフェクトが出ると攻撃されたと誤解するので除外する。
+     */
+    const fromAuction = prevPhaseRef.current === 'auction';
+    prevPhaseRef.current = state.phase;
     for (const player of state.players) {
       const baseKey = `base:${player.id}`;
       nextHp.set(baseKey, player.baseHp);
-      if (prevHp.has(baseKey) && prevHp.get(baseKey)! > player.baseHp) flashOnce(setHitIds, baseKey, 450);
+      if (prevHp.has(baseKey) && prevHp.get(baseKey)! > player.baseHp && !fromAuction) {
+        flashOnce(setHitIds, baseKey, 450);
+        // 拠点被弾は勝敗に直結するので、画面全体のエフェクトで確実に気づかせる
+        showBaseDamage(player.id === me ? 'me' : 'foe', prevHp.get(baseKey)! - player.baseHp);
+      }
       for (const u of player.units) {
         nextHp.set(u.uid, u.hp);
         if (prevHp.has(u.uid) && prevHp.get(u.uid)! > u.hp) flashOnce(setHitIds, u.uid, 450);
@@ -275,7 +327,13 @@ export function BattleScreen({ config, onExit }: Props) {
       );
       return;
     }
-    if (state.phase !== 'main' || !isMyTurn) return;
+    if (state.phase !== 'main' || !isMyTurn) {
+      // 分配中や相手のターン中でも、手札の中身は確認できるようにする
+      // （プレイはできないので実行ボタンのない詳細シートを出す）
+      const card = myPlayer.hand.find((c) => c.uid === uid);
+      if (card) setSheet(getCard(card.defId));
+      return;
+    }
     if (pending?.kind === 'playCard' && pending.uid === uid) {
       setPending(null);
       return;
@@ -430,7 +488,7 @@ export function BattleScreen({ config, onExit }: Props) {
   }
 
   return (
-    <div className="screen battle">
+    <div className="screen battle" ref={screenRef}>
       <div className="topbar">
         <button className="icon-btn" onClick={onExit} aria-label="戻る">
           <ChevronLeft size={18} />
@@ -564,7 +622,7 @@ export function BattleScreen({ config, onExit }: Props) {
 
       <StatusBar player={myPlayer} side="me" hit={hitIds.has(`base:${me}`)} />
 
-      <div className="control-area">
+      <div className="control-area" ref={controlRef}>
         {/*
           常時マウントの固定高さバー。対象選択・捨て札の案内をここに出す。
           条件付きマウントだと内容の有無で高さが変わり、.board（flex:1）が
@@ -720,6 +778,19 @@ export function BattleScreen({ config, onExit }: Props) {
             myResources={myPlayer.resources}
           />
         </ActionSheet>
+      )}
+
+      {/*
+        拠点被弾の全画面エフェクト。key に連番を渡して、連続被弾でも
+        アニメーションが必ず再生されるようにする。
+      */}
+      {baseDamage && (
+        <div key={baseDamage.seq} className={`base-damage ${baseDamage.side}`}>
+          <div className="base-damage-value">-{baseDamage.amount}</div>
+          <div className="base-damage-label">
+            {baseDamage.side === 'me' ? '自分の拠点が被弾' : '相手の拠点に命中'}
+          </div>
+        </div>
       )}
 
       <div className="toast-stack">
@@ -907,20 +978,32 @@ function ActionSheet({
   onCancel?: () => void;
   children: React.ReactNode;
 }) {
+  // 盤面を確認したいときに中身だけ畳む。手札は常に見えている（背景が手札バーの
+  // 手前で止まるため）ので、隠れて困るのは盤面だけ。
+  const [peek, setPeek] = useState(false);
+
   return (
-    <div className="sheet-backdrop action-backdrop">
+    <div className={`sheet-backdrop action-backdrop ${peek ? 'peek' : ''}`}>
       <div className="sheet">
         <div className="sheet-head">
           <div className="sheet-title" style={{ flex: 1 }}>
             {title}
           </div>
+          <button
+            className="icon-btn"
+            onClick={() => setPeek((v) => !v)}
+            aria-label={peek ? '選択に戻る' : '盤面を確認する'}
+            title={peek ? '選択に戻る' : '盤面を確認する'}
+          >
+            {peek ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
           {onCancel && (
             <button className="icon-btn" onClick={onCancel} aria-label="キャンセル">
               <X size={16} />
             </button>
           )}
         </div>
-        {children}
+        <div className="sheet-body">{children}</div>
       </div>
     </div>
   );
