@@ -15,7 +15,6 @@ export interface AutoplayResult {
   reason: string | null;
   turns: number;
   finalHp: [number, number];
-  bids: [number, number];
   first: PlayerId;
   state: GameState;
 }
@@ -81,19 +80,15 @@ export function playMatch(config: MatchConfig): AutoplayResult {
     0: makeAi(config.aiA, config.seed ^ 0x5bf03635),
     1: makeAi(config.aiB, config.seed ^ 0x27d4eb2f),
   };
-  const bids: [number, number] = [0, 0];
 
   state = advanceAi(state, ais, 5000);
-  bids[0] = state.players[0].bid;
-  bids[1] = state.players[1].bid;
 
   return {
     winner: state.winner,
     reason: state.winReason,
     turns: state.turn,
     finalHp: [state.players[0].baseHp, state.players[1].baseHp],
-    bids,
-    first: bids[0] > bids[1] ? 0 : bids[1] > bids[0] ? 1 : state.active,
+    first: state.firstPlayer ?? state.active,
     state,
   };
 }

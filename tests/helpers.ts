@@ -35,7 +35,6 @@ export function board(setup: BoardSetup = {}): GameState {
   state.turn = 1;
   state.active = setup.active ?? 0;
   state.priority = state.active;
-  for (const p of state.players) p.bid = 0;
 
   for (const pid of [0, 1] as PlayerId[]) {
     const p = state.players[pid];

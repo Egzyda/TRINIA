@@ -51,7 +51,7 @@ export interface PlayerSetup {
 }
 
 /**
- * 対局を生成し、オークションフェイズの状態を返す。
+ * 対局を生成し、マリガンフェイズの状態を返す。
  * 初期手札6枚は「引き直しなし」で配りきる（仕様書 2.1）。
  */
 export function createGame(
@@ -68,6 +68,7 @@ export function createGame(
     turn: 0,
     players: [makePlayer(0, p0, rules), makePlayer(1, p1, rules)],
     stack: [],
+    firstPlayer: null,
     rngState: seed,
     winner: null,
     winReason: null,
@@ -105,7 +106,6 @@ function makePlayer(id: PlayerId, setup: PlayerSetup, rules: RuleSet): PlayerSta
     graveyard: [],
     units: [],
     facilities: [],
-    bid: -1,
     skipMainPhases: 0,
     mulliganDone: false,
   };
@@ -397,6 +397,7 @@ export function cloneState(state: GameState): GameState {
     turn: state.turn,
     players: [clonePlayer(state.players[0]), clonePlayer(state.players[1])],
     stack: state.stack.map((s) => ({ ...s, targets: s.targets.slice() })),
+    firstPlayer: state.firstPlayer,
     rngState: state.rngState,
     winner: state.winner,
     winReason: state.winReason,
@@ -420,7 +421,6 @@ function clonePlayer(p: PlayerState): PlayerState {
     graveyard: p.graveyard.slice(),
     units: p.units.map((u) => ({ ...u })),
     facilities: p.facilities.map((f) => ({ ...f })),
-    bid: p.bid,
     skipMainPhases: p.skipMainPhases,
     mulliganDone: p.mulliganDone,
   };

@@ -57,7 +57,7 @@ UI を変更したときは、ブラウザでの実表示も確認する（`npm 
 - **カードの効果とバランス数値は `data/cards_master.json` に置く。**
   調整でコードを書き換えないで済む形を維持する。
 - **バランスを変えたら実測する。** 推測で数値をいじらない。
-  `npm run sim` / `npm run sim:auction` を回し、根拠を `docs/BALANCE.md` に残す。
+  `npm run sim` / `npm run sim:bonus` を回し、根拠を `docs/BALANCE.md` に残す。
 - 絵文字は UI に使わない。UIアイコンは Lucide、カードは Game-icons.net。
 
 ## ドキュメント

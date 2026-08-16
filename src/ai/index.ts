@@ -72,10 +72,6 @@ export function decideAction(state: GameState, me: PlayerId, ctx: AiContext): Ga
       return state.players[me].mulliganDone
         ? null
         : { type: 'mulligan', player: me, uids: decideMulligan(state, me, ctx) };
-    case 'auction':
-      return state.players[me].bid >= 0
-        ? null
-        : { type: 'bid', player: me, amount: decideBid(state, me, ctx) };
     case 'allocate':
       return state.active === me ? decideAllocation(state, me, ctx) : null;
     case 'main':
@@ -102,45 +98,6 @@ function decideMulligan(state: GameState, me: PlayerId, ctx: AiContext): string[
   }
   // 序盤2〜3ターンでは合計コスト4以上のカードはまず打てないので送り返す
   return hand.filter((c) => totalCost(getCard(c.defId).cost) >= 4).map((c) => c.uid);
-}
-
-// ---------------------------------------------------------------------------
-// オークション
-// ---------------------------------------------------------------------------
-
-/**
- * 先攻の価値はデッキの速度に比例する。
- * 平均コストが軽いデッキほど「1ターン早く殴れる」価値が高いので高く積む。
- */
-export function decideBid(state: GameState, me: PlayerId, ctx: AiContext): number {
-  const p = state.players[me];
-  const all = [...p.hand, ...p.deck];
-  const avgCost =
-    all.reduce((sum, c) => {
-      const cost = getCard(c.defId).cost;
-      return sum + cost.fund + cost.mana + cost.aether;
-    }, 0) / Math.max(1, all.length);
-
-  if (ctx.difficulty === 'easy') return rand(ctx, Math.floor(state.rules.MAX_BID / 2) + 1);
-
-  // 前衛を並べて殴るデッキほど先攻の価値が高い。
-  // 実測した均衡落札額は速攻寄りで上限付近、受け寄りで数点だった（tools/auction.ts）。
-  const units = all.filter((c) => getCard(c.defId).type === 'unit').length;
-  const unitRatio = units / Math.max(1, all.length);
-  const speed = Math.max(0, Math.min(1, unitRatio * 1.6 + (3.2 - avgCost) * 0.25));
-
-  const base = Math.round(state.rules.MAX_BID * (0.15 + speed * 0.7));
-  const spread = ctx.difficulty === 'hard' ? 3 : 7;
-  const jitter = rand(ctx, spread * 2 + 1) - spread;
-
-  // 実測(tools/auction.ts)では、デッキごとの先攻価値のばらつきが
-  // このヒューリスティックの想定より大きく、特にコントロール系デッキでは
-  // 均衡落札額が拠点HPの1割程度しかないのに、この式は3割近くまで積んでしまっていた。
-  // 拠点HPを大きく失うと後半戦がそのまま不利になるため、
-  // 自陣拠点HPの3割を絶対的な上限として、過大な提示で試合そのものを
-  // 投げてしまわないようにする。
-  const hpCap = Math.floor(state.rules.BASE_HP * 0.3);
-  return Math.max(0, Math.min(state.rules.MAX_BID, hpCap, base + jitter));
 }
 
 // ---------------------------------------------------------------------------

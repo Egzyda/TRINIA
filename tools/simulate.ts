@@ -11,7 +11,7 @@
  * 見るべき指標:
  *   - 勝率が 40〜60% に収まっているか（デッキ間の壊れ検出）
  *   - 平均ターン数（短すぎ＝アグロ過剰、長すぎ＝決着手段不足）
- *   - 先攻勝率（オークションが機能していれば 50% 近辺に寄る）
+ *   - 先攻勝率（コイントス＋後攻ボーナスが機能していれば 50% 近辺に寄る）
  */
 import { DECK_PRESETS } from '../src/cards/decks';
 import { playMatch } from '../src/ai/autoplay';
@@ -46,7 +46,7 @@ function parseArgs(argv: string[]): Args {
     else if (a === '--mode') args.mode = argv[++i] as MatchModeId;
     else if (a === '--hp') args.overrides.BASE_HP = Number(argv[++i]);
     else if (a === '--fp') args.overrides.FREE_POINTS = Number(argv[++i]);
-    else if (a === '--bid') args.overrides.MAX_BID = Number(argv[++i]);
+    else if (a === '--second-bonus') args.overrides.SECOND_PLAYER_BONUS = Number(argv[++i]);
   }
   return args;
 }
@@ -59,7 +59,6 @@ interface Tally {
   countdownWins: number;
   timeouts: number;
   hpTotal: number;
-  bidTotal: number;
 }
 
 function emptyTally(): Tally {
@@ -71,7 +70,6 @@ function emptyTally(): Tally {
     countdownWins: 0,
     timeouts: 0,
     hpTotal: 0,
-    bidTotal: 0,
   };
 }
 
@@ -113,7 +111,6 @@ function main(): void {
         t.games += 1;
         t.turnsTotal += r.turns;
         t.hpTotal += Math.max(r.finalHp[0], r.finalHp[1]);
-        t.bidTotal += Math.max(r.bids[0], r.bids[1]);
         if (r.winner === 0) t.winsA += 1;
         if (r.winner !== null && r.winner === r.first) t.firstWins += 1;
         if (r.reason?.includes('カウントダウン')) t.countdownWins += 1;
@@ -167,7 +164,6 @@ function main(): void {
   console.log(`総試合数        : ${overall.games}`);
   console.log(`平均ターン数    : ${(overall.turnsTotal / overall.games).toFixed(1)}`);
   console.log(`先攻勝率        : ${pct(overall.firstWins, overall.games)}`);
-  console.log(`平均落札額(HP)  : ${(overall.bidTotal / overall.games).toFixed(2)}`);
   console.log(`勝者の残HP平均  : ${(overall.hpTotal / overall.games).toFixed(1)}`);
   console.log(`特殊勝利率      : ${pct(overall.countdownWins, overall.games)}`);
   console.log(`ターン上限決着率: ${pct(overall.timeouts, overall.games)}`);
@@ -209,7 +205,6 @@ function mergeInto(dst: Tally, src: Tally): void {
   dst.countdownWins += src.countdownWins;
   dst.timeouts += src.timeouts;
   dst.hpTotal += src.hpTotal;
-  dst.bidTotal += src.bidTotal;
 }
 
 main();

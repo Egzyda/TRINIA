@@ -29,23 +29,15 @@ export interface RuleSet {
   /** 施設ゾーンの最大枠数 */
   MAX_FACILITIES: number;
   /**
-   * オークションで提示できるHPの上限。
+   * 後攻プレイヤーが毎回得る初期リソースpt。
    *
-   * 仕様書 2.2 は「0〜10点以上」と表記していたが、実測した先攻権の価値は
-   * 拠点HP 20〜22点相当だった（tools/auction.ts）。上限10では曲線の平坦部に
-   * 収まってしまい「全員が上限を積んでも先攻が6割勝つ」＝競りが機能しない。
-   * 上限を拠点HPの半分程度まで広げることで、均衡落札額が範囲の中央付近に来る。
+   * 先攻/後攻はコイントスで決め、拠点HPは両者満タンで始まる。以前は先攻権を
+   * 拠点HPのオークションで競らせていたが、AIの入札ヒューリスティックの精度に
+   * 結果が依存してしまい、実測では何もしないより悪い先攻勝率（64.9%）になっていた。
+   * コイントス＋固定ボーナスに切り替えたところ、この値(+1pt)だけで先攻勝率51.1%まで
+   * 収まることを実測済み（docs/BALANCE.md §14）。
    */
-  MAX_BID: number;
-  /** 後攻プレイヤーが得る初期リソースpt（仕様書 2.2 の同点ボーナス） */
   SECOND_PLAYER_BONUS: number;
-  /**
-   * 後攻ボーナスを常時付与するか。
-   *
-   * false（既定・仕様書どおり）: 同点時のみ付与。先攻の価値はオークションで支払わせる。
-   * true: 毎回付与。MAX_BID を狭く保ちたい場合の代替案。
-   */
-  SECOND_PLAYER_BONUS_ALWAYS: boolean;
   /** 後攻プレイヤーが追加で引く初期手札（さらに細かく調整したい場合の予備の摘み） */
   SECOND_PLAYER_BONUS_CARDS: number;
   /** 引き分け判定に使う最大ターン数（無限ループ防止の安全弁） */
@@ -62,9 +54,7 @@ export const DEFAULT_RULES: Readonly<RuleSet> = {
   DRAW_COST: 1,
   MAX_UNITS: 3,
   MAX_FACILITIES: 3,
-  MAX_BID: 25,
   SECOND_PLAYER_BONUS: 1,
-  SECOND_PLAYER_BONUS_ALWAYS: false,
   SECOND_PLAYER_BONUS_CARDS: 0,
   TURN_LIMIT: 200,
 };
@@ -106,10 +96,6 @@ export interface MatchMode {
  * HPだけ削るとアグロ一強になり（実測で強襲部隊が75%）、
  * 施設を建てて戦力を整えるという本作の骨格が機能しなくなるため。
  * 付与ptを3にすると重いデッキも展開が間に合い、勝率の散らばりが標準ルール並みに収まる。
- *
- * オークション上限は拠点HPに連動させる必要がある。
- * 実測した先攻権の価値は概ね拠点HPの4割前後で、
- * 上限がそれを少し上回るところに来ると競りが駆け引きとして成立する（docs/BALANCE.md §3）。
  */
 export const MATCH_MODES: MatchMode[] = [
   {
@@ -117,14 +103,14 @@ export const MATCH_MODES: MatchMode[] = [
     name: 'スタンダード',
     description: '施設を建てて戦力を整える、じっくり型の標準ルール。',
     turnsHint: '1人あたり約20ターン',
-    overrides: { BASE_HP: 40, FREE_POINTS: 2, MAX_BID: 20 },
+    overrides: { BASE_HP: 40, FREE_POINTS: 2 },
   },
   {
     id: 'quick',
     name: 'クイック',
     description: '拠点HPが低く、毎ターンのポイントが3ptに増える加速ルール。短期決戦向け。',
     turnsHint: '1人あたり約14ターン',
-    overrides: { BASE_HP: 30, FREE_POINTS: 3, MAX_BID: 14 },
+    overrides: { BASE_HP: 30, FREE_POINTS: 3 },
   },
 ];
 

@@ -49,13 +49,12 @@ type Pending =
   | { kind: 'activate'; facilityUid: string; def: CardDef; resource?: ResourceKind }
   | null;
 
-/** オークション解決直後に表示する「どちらが先攻か」バナーの内容 */
+/** コイントス直後に表示する「どちらが先攻か」バナーの内容 */
 interface FirstBannerInfo {
   amIFirst: boolean;
   firstName: string;
-  firstBid: number;
   secondName: string;
-  secondBid: number;
+  secondBonus: number;
 }
 
 export function BattleScreen({ config, onExit }: Props) {
@@ -72,7 +71,6 @@ export function BattleScreen({ config, onExit }: Props) {
   const [discardPick, setDiscardPick] = useState<string[]>([]);
   const [mulliganPick, setMulliganPick] = useState<string[]>([]);
   const [alloc, setAlloc] = useState({ fund: 0, mana: 0, aether: 0, draw: 0 });
-  const [bid, setBid] = useState(0);
   const [firstBanner, setFirstBanner] = useState<FirstBannerInfo | null>(null);
 
   const myPlayer = state.players[me];
@@ -111,7 +109,7 @@ export function BattleScreen({ config, onExit }: Props) {
     if (state.phase === 'allocate') setAlloc({ fund: 0, mana: 0, aether: 0, draw: 0 });
   }, [state.phase, state.turn]);
 
-  // オークション解決直後（ターン1開始時）に、どちらが先攻かをはっきり示す。
+  // コイントス直後（ターン1開始時）に、どちらが先攻かをはっきり示す。
   // 自動消滅用のタイマーは ref で持ち回り、effectのクリーンアップに乗せない。
   // 乗せると「ターンが1→2へ進む」だけで（AIが先攻で素早く1ターン目を終えた場合など）
   // クリーンアップが走ってタイマーがキャンセルされ、バナーが消えなくなるバグを踏んだため。
@@ -123,9 +121,8 @@ export function BattleScreen({ config, onExit }: Props) {
     setFirstBanner({
       amIFirst: state.active === me,
       firstName: first.name,
-      firstBid: first.bid,
       secondName: second.name,
-      secondBid: second.bid,
+      secondBonus: state.rules.SECOND_PLAYER_BONUS,
     });
     clearTimeout(bannerTimeoutRef.current);
     bannerTimeoutRef.current = setTimeout(() => setFirstBanner(null), 3200);
@@ -198,22 +195,15 @@ export function BattleScreen({ config, onExit }: Props) {
     );
   };
 
-  const prevPhaseRef = useRef(state.phase);
   useEffect(() => {
     const prevHp = prevHpRef.current;
     const nextHp = new Map<string, number>();
     const prevAtk = prevAttackedRef.current;
     const nextAtk = new Set<string>();
-    /*
-     * オークション解決時は「先攻権の支払い」で拠点HPが減るが、これは被弾ではない。
-     * 対局開始直後に大きな赤いエフェクトが出ると攻撃されたと誤解するので除外する。
-     */
-    const fromAuction = prevPhaseRef.current === 'auction';
-    prevPhaseRef.current = state.phase;
     for (const player of state.players) {
       const baseKey = `base:${player.id}`;
       nextHp.set(baseKey, player.baseHp);
-      if (prevHp.has(baseKey) && prevHp.get(baseKey)! > player.baseHp && !fromAuction) {
+      if (prevHp.has(baseKey) && prevHp.get(baseKey)! > player.baseHp) {
         flashOnce(setHitIds, baseKey, 450);
         // 拠点被弾は勝敗に直結するので、画面全体のエフェクトで確実に気づかせる
         showBaseDamage(player.id === me ? 'me' : 'foe', prevHp.get(baseKey)! - player.baseHp);
@@ -732,25 +722,6 @@ export function BattleScreen({ config, onExit }: Props) {
       )}
 
       {/* 盤面タップが不要な選択肢は、盤面を押し縮めない浮き上がりモーダルで出す */}
-      {state.phase === 'auction' && myPlayer.bid < 0 && (
-        <ActionSheet title="先攻権に支払う拠点HPを提示（同時入力）">
-          <AuctionPanel
-            maxBid={state.rules.MAX_BID}
-            baseHp={myPlayer.baseHp}
-            value={bid}
-            onChange={setBid}
-            onSubmit={() => dispatch({ type: 'bid', player: me, amount: bid })}
-          />
-        </ActionSheet>
-      )}
-      {state.phase === 'auction' && myPlayer.bid >= 0 && (
-        <ActionSheet title="提示済み">
-          <div className="sheet-text">
-            提示: {myPlayer.bid} HP。相手の提示を待っています…
-          </div>
-        </ActionSheet>
-      )}
-
       {state.phase === 'allocate' && isMyTurn && (
         <ActionSheet title={`フリーポイント${state.rules.FREE_POINTS}ptを分配してください`}>
           <div className="alloc-grid">
@@ -900,9 +871,9 @@ export function BattleScreen({ config, onExit }: Props) {
               {firstBanner.amIFirst ? 'あなたが先攻です' : '相手が先攻です'}
             </div>
             <div className="first-banner-sub">
-              先攻: {firstBanner.firstName}（提示 {firstBanner.firstBid}）
+              先攻: {firstBanner.firstName}
               <br />
-              後攻: {firstBanner.secondName}（提示 {firstBanner.secondBid}）
+              後攻: {firstBanner.secondName}（初期リソース+{firstBanner.secondBonus}pt）
             </div>
           </div>
         </div>
@@ -1026,13 +997,7 @@ function AllocCell({
 }
 
 /**
- * オークションパネル。
- * 仕様書 2.2 は「制限時間5秒の同時暗黙入力」だが、
- * 実機では考える間もなく即決を迫られ操作しづらいため時間無制限にしている。
- * 相手側（AI）は自分の提示を待たずに独自に決めるので、同時入力の性質自体は保たれる。
- */
-/**
- * 盤面タップが要らない選択肢（オークション・分配・応答・支払い/獲得リソース選択）用の
+ * 盤面タップが要らない選択肢（分配・応答・支払い/獲得リソース選択）用の
  * 浮き上がりモーダル。position:absoluteで盤面レイアウトの外に出すため、
  * 開閉しても .board や .control-area の高さに影響しない。
  */
@@ -1085,45 +1050,6 @@ function ActionSheet({
         </div>
         <div className="sheet-body">{children}</div>
       </div>
-    </div>
-  );
-}
-
-function AuctionPanel({
-  maxBid,
-  baseHp,
-  value,
-  onChange,
-  onSubmit,
-}: {
-  maxBid: number;
-  baseHp: number;
-  value: number;
-  onChange: (v: number) => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <div className="auction">
-      <div className="auction-value">
-        {value}
-        <small> HP</small>
-      </div>
-      <div className="auction-hint">
-        高い方が先攻。支払ったHPだけ減った状態で始まります
-        <br />
-        提示すると 拠点HP {baseHp - value} で開始
-      </div>
-      <input
-        className="auction-slider"
-        type="range"
-        min={0}
-        max={maxBid}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
-      <button className="btn btn-primary btn-block" onClick={onSubmit}>
-        この額で提示する
-      </button>
     </div>
   );
 }

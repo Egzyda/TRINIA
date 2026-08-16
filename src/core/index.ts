@@ -3,6 +3,6 @@ export * from './types';
 export * from './rules';
 export * from './rng';
 export * from './gameState';
-export * from './auctionEngine';
+export * from './firstPlayer';
 export * from './effects';
 export * from './mainPhaseEngine';

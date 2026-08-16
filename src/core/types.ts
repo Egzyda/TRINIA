@@ -201,8 +201,6 @@ export interface PlayerState {
   graveyard: CardInstance[];
   units: UnitInstance[];
   facilities: FacilityInstance[];
-  /** オークションで提示したHP */
-  bid: number;
   /** タイムストップ等で次回以降のメインフェイズをスキップする残り回数 */
   skipMainPhases: number;
   /** マリガン（引き直し）を決定済みか */
@@ -216,8 +214,6 @@ export interface PlayerState {
 export type Phase =
   /** マリガン（初期手札の引き直し・両者同時入力） */
   | 'mulligan'
-  /** 先攻・後攻を決めるオークション（両者同時入力） */
-  | 'auction'
   /** 2ptの分配待ち */
   | 'allocate'
   /** メインフェイズ（プレイ・攻撃・起動が順不同） */
@@ -259,6 +255,8 @@ export interface GameState {
   turn: number;
   players: [PlayerState, PlayerState];
   stack: StackItem[];
+  /** コイントスで決まった先攻。マリガン完了前は null */
+  firstPlayer: PlayerId | null;
   /** 乱数シード状態 */
   rngState: number;
   winner: PlayerId | null;
@@ -286,8 +284,6 @@ export interface LogEntry {
 export type GameAction =
   /** マリガン: 引き直したい初期手札を指定する（0枚でもよい） */
   | { type: 'mulligan'; player: PlayerId; uids: string[] }
-  /** オークション: 先攻権に支払うHPを提示 */
-  | { type: 'bid'; player: PlayerId; amount: number }
   /** 2pt分配: 各リソースへのチャージ量とドロー枚数（合計が付与pt） */
   | { type: 'allocate'; fund: number; mana: number; aether: number; draw: number }
   /** カードのプレイ */
