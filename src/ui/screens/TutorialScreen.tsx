@@ -2,8 +2,8 @@
  * チュートリアル画面（仕様書 3.1）
  * 基本ルールをテキストで案内する。数値はRULESから引くので調整が自動で反映される。
  */
-import { ChevronLeft, Coins, Dices, Gauge, Hand, Layers, Swords, Timer } from 'lucide-react';
-import { MATCH_MODES, RULES } from '../../core/rules';
+import { ChevronLeft, Coins, Dices, Hand, Layers, Swords, Timer } from 'lucide-react';
+import { RULES } from '../../core/rules';
 
 export function TutorialScreen({ onBack }: { onBack: () => void }) {
   return (
@@ -84,25 +84,6 @@ export function TutorialScreen({ onBack }: { onBack: () => void }) {
               デッキは{RULES.DECK_SIZE}枚、同名カードは{RULES.MAX_COPIES}枚まで。
               初期手札は{RULES.INITIAL_HAND}枚で引き直しはありません。
               山札が尽きたら墓地をシャッフルして再生成するので、デッキ切れによる敗北はありません。
-            </p>
-          </section>
-
-          <section>
-            <h3>
-              <Gauge size={16} color="#5aa9ff" /> 対局モード
-            </h3>
-            <p>対局を始める前に、試合の長さを選べます。</p>
-            <ul>
-              {MATCH_MODES.map((m) => (
-                <li key={m.id}>
-                  <strong style={{ color: 'var(--text)' }}>{m.name}</strong>: 拠点HP{' '}
-                  {m.overrides.BASE_HP} / 毎ターン {m.overrides.FREE_POINTS}pt / {m.turnsHint}
-                </li>
-              ))}
-            </ul>
-            <p>
-              クイックは拠点HPが低いぶん、毎ターンもらえるポイントが増えます。
-              重いカードにも手が届くので、短いだけの試合にはなりません。
             </p>
           </section>
 
