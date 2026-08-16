@@ -1513,17 +1513,27 @@ button {
 /* ------------------------------------------------------------------ */
 
 .setup {
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 16px 16px calc(16px + var(--safe-bottom));
-  overflow: hidden;
+  padding: 16px 16px calc(100px + var(--safe-bottom));
 }
 
 .setup-row {
   flex-shrink: 0;
+}
+
+.setup-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 16px calc(10px + var(--safe-bottom));
+  background: var(--bg-panel);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .setup-label {

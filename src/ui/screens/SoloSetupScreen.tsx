@@ -1,7 +1,8 @@
 /**
  * ソロプレイ設定画面。
  * 使用デッキと難易度を選んで対局を開始する。
- * チップ選択＋1行説明のみで構成し、スクロールなしで1画面に収める。
+ * 相手デッキの選択肢が増えても対局開始ボタンが必ず押せるよう、
+ * 選択肢部分だけをスクロールさせ、ボタンは画面下部に固定する。
  */
 import { useState } from 'react';
 import { ChevronLeft, Play, Shuffle } from 'lucide-react';
@@ -50,87 +51,89 @@ export function SoloSetupScreen({ slots, playerName, onBack, onStart }: Props) {
         <h1>ソロプレイ</h1>
       </div>
 
-      <div className="setup">
-        <SetupRow label="対局モード">
-          {/* 選択肢を等幅に並べると、幅のばらつきで行が崩れず視線が揃う */}
-          <div className="seg" style={{ gridTemplateColumns: `repeat(${MATCH_MODES.length}, 1fr)` }}>
-            {MATCH_MODES.map((m) => (
-              <button
-                key={m.id}
-                className={`seg-btn ${m.id === mode ? 'active' : ''}`}
-                onClick={() => setMode(m.id)}
-              >
-                {m.name}
-              </button>
-            ))}
-          </div>
-          <div className="setup-desc">
-            拠点HP{selectedMode.overrides.BASE_HP} / 毎ターン{selectedMode.overrides.FREE_POINTS}pt /{' '}
-            {selectedMode.turnsHint}
-            <br />
-            {selectedMode.description}
-          </div>
-        </SetupRow>
+      <div className="screen-scroll">
+        <div className="setup">
+          <SetupRow label="対局モード">
+            {/* 選択肢を等幅に並べると、幅のばらつきで行が崩れず視線が揃う */}
+            <div className="seg" style={{ gridTemplateColumns: `repeat(${MATCH_MODES.length}, 1fr)` }}>
+              {MATCH_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  className={`seg-btn ${m.id === mode ? 'active' : ''}`}
+                  onClick={() => setMode(m.id)}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+            <div className="setup-desc">
+              拠点HP{selectedMode.overrides.BASE_HP} / 毎ターン{selectedMode.overrides.FREE_POINTS}pt /{' '}
+              {selectedMode.turnsHint}
+              <br />
+              {selectedMode.description}
+            </div>
+          </SetupRow>
 
-        <SetupRow label="使用デッキ">
-          {usable.length === 0 && <span className="setup-desc">20枚のデッキがありません</span>}
-          {/* 自作デッキは名前が長くなりがちなので、横並びにせず縦一列で省略なく見せる */}
-          <div className="pick-list">
-            {usable.map((slot, i) => (
-              <button
-                key={slot.id}
-                className={`pick-row ${i === myDeckIdx ? 'active' : ''}`}
-                onClick={() => setMyDeckIdx(i)}
-              >
-                <span className="pick-name">{slot.name}</span>
-                <span className="pick-meta">{slot.cards.length}枚</span>
-              </button>
-            ))}
-          </div>
-        </SetupRow>
+          <SetupRow label="使用デッキ">
+            {usable.length === 0 && <span className="setup-desc">20枚のデッキがありません</span>}
+            {/* 自作デッキは名前が長くなりがちなので、横並びにせず縦一列で省略なく見せる */}
+            <div className="pick-list">
+              {usable.map((slot, i) => (
+                <button
+                  key={slot.id}
+                  className={`pick-row ${i === myDeckIdx ? 'active' : ''}`}
+                  onClick={() => setMyDeckIdx(i)}
+                >
+                  <span className="pick-name">{slot.name}</span>
+                  <span className="pick-meta">{slot.cards.length}枚</span>
+                </button>
+              ))}
+            </div>
+          </SetupRow>
 
-        <SetupRow label="相手デッキ">
-          <button
-            className={`pick-row ${isRandomFoe ? 'active' : ''}`}
-            onClick={() => setFoeDeckId(RANDOM_FOE_ID)}
-          >
-            <Shuffle size={13} />
-            <span className="pick-name">ランダム</span>
-          </button>
-          <div className="pick-grid">
-            {DECK_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                className={`pick-cell ${preset.id === foeDeckId ? 'active' : ''}`}
-                onClick={() => setFoeDeckId(preset.id)}
-              >
-                <span className={`fac-dot fac-${preset.faction}`} />
-                <span className="pick-name">{preset.name.replace(/（.*/, '')}</span>
-              </button>
-            ))}
-          </div>
-          <div className="setup-desc">
-            {isRandomFoe ? '対局開始時にランダムで選ばれます。' : selectedFoe?.description}
-          </div>
-        </SetupRow>
+          <SetupRow label="相手デッキ">
+            <button
+              className={`pick-row ${isRandomFoe ? 'active' : ''}`}
+              onClick={() => setFoeDeckId(RANDOM_FOE_ID)}
+            >
+              <Shuffle size={13} />
+              <span className="pick-name">ランダム</span>
+            </button>
+            <div className="pick-grid">
+              {DECK_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  className={`pick-cell ${preset.id === foeDeckId ? 'active' : ''}`}
+                  onClick={() => setFoeDeckId(preset.id)}
+                >
+                  <span className={`fac-dot fac-${preset.faction}`} />
+                  <span className="pick-name">{preset.name.replace(/（.*/, '')}</span>
+                </button>
+              ))}
+            </div>
+            <div className="setup-desc">
+              {isRandomFoe ? '対局開始時にランダムで選ばれます。' : selectedFoe?.description}
+            </div>
+          </SetupRow>
 
-        <SetupRow label="難易度">
-          <div className="seg" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-            {DIFFICULTIES.map((d) => (
-              <button
-                key={d}
-                className={`seg-btn ${d === difficulty ? 'active' : ''}`}
-                onClick={() => setDifficulty(d)}
-              >
-                {DIFFICULTY_LABEL[d]}
-              </button>
-            ))}
-          </div>
-          <div className="setup-desc">{DIFFICULTY_DESCRIPTION[difficulty]}</div>
-        </SetupRow>
+          <SetupRow label="難易度">
+            <div className="seg" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d}
+                  className={`seg-btn ${d === difficulty ? 'active' : ''}`}
+                  onClick={() => setDifficulty(d)}
+                >
+                  {DIFFICULTY_LABEL[d]}
+                </button>
+              ))}
+            </div>
+            <div className="setup-desc">{DIFFICULTY_DESCRIPTION[difficulty]}</div>
+          </SetupRow>
+        </div>
+      </div>
 
-        <div style={{ flex: 1 }} />
-
+      <div className="setup-footer">
         {!myDeck && (
           <div className="notice">20枚のデッキがありません。デッキ編集で作成してください。</div>
         )}
