@@ -84,14 +84,31 @@ describe('魔力系', () => {
     expect(r.state.players[0].units[0].hp).toBe(1);
   });
 
-  it('追撃の魔導士はスペル発動ごとに敵拠点へ1ダメージ', () => {
+  it('追撃の魔導士はスペル発動ごとにランダムな敵ユニット1体へ1ダメージ', () => {
     const s = board({
       hands: { 0: ['mana_draw_spell'] },
       resources: { 0: { mana: 2 } },
-      units: { 0: ['mana_pursuit_mage', 'mana_pursuit_mage'] },
+      units: { 0: ['mana_pursuit_mage', 'mana_pursuit_mage'], 1: ['fund_heavy_guard'] },
     });
+    const beforeBaseHp = s.players[1].baseHp;
     const r = applyAction(s, { type: 'playCard', uid: handUid(s, P0, 'mana_draw_spell') });
-    expect(r.state.players[1].baseHp).toBe(48);
+    // 敵ユニットが1体しかいないので、2回のトリガーとも必ずそこに命中する（重装兵HP8→6）
+    expect(r.state.players[1].units[0].hp).toBe(6);
+    // 拠点には当たらなくなった
+    expect(r.state.players[1].baseHp).toBe(beforeBaseHp);
+  });
+
+  it('追撃の魔導士は敵ユニットがいなければ何も起きない', () => {
+    const s = board({
+      hands: { 0: ['mana_draw_spell'] },
+      resources: { 0: { mana: 2 } },
+      units: { 0: ['mana_pursuit_mage'] },
+    });
+    const beforeBaseHp = s.players[1].baseHp;
+    const r = applyAction(s, { type: 'playCard', uid: handUid(s, P0, 'mana_draw_spell') });
+    expect(r.ok).toBe(true);
+    expect(r.state.players[1].units).toHaveLength(0);
+    expect(r.state.players[1].baseHp).toBe(beforeBaseHp);
   });
 
   it('ドロー系は指定枚数を引く', () => {

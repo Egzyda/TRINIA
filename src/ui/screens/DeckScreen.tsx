@@ -11,7 +11,12 @@ import { RULES } from '../../core/rules';
 import { MAX_SLOTS, slotStatus, type DeckSlot } from '../deckStorage';
 import type { CardType, Faction } from '../../core/types';
 
-/** マスターデータへの追加順(no)がバラついていても、タイプ単位でまとまって見えるようにする */
+/**
+ * マスターデータへの追加順(no)がバラついていても整列して見えるようにする。
+ * 「すべて」表示では属性(資金/魔力/エーテル/複合)でまとまり、
+ * 各属性内はタイプ(ユニット→施設→スペル)でまとまる。
+ */
+const FACTION_ORDER: Record<Faction, number> = { fund: 0, mana: 1, aether: 2, hybrid: 3 };
 const TYPE_ORDER: Record<CardType, number> = { unit: 0, facility: 1, spell: 2 };
 
 interface Props {
@@ -41,7 +46,10 @@ export function DeckScreen({ slots, onChange, onBack }: Props) {
   }, [slot.cards]);
 
   const visible = ALL_CARDS.filter((c) => filter === 'all' || c.faction === filter).sort(
-    (a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type] || a.no - b.no,
+    (a, b) =>
+      FACTION_ORDER[a.faction] - FACTION_ORDER[b.faction] ||
+      TYPE_ORDER[a.type] - TYPE_ORDER[b.type] ||
+      a.no - b.no,
   );
   const status = slotStatus(slot);
 
