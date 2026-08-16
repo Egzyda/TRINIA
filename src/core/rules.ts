@@ -78,7 +78,7 @@ export function resetRules(): void {
 // 対局モード
 // ---------------------------------------------------------------------------
 
-export type MatchModeId = 'quick' | 'standard';
+export type MatchModeId = 'standard';
 
 export interface MatchMode {
   id: MatchModeId;
@@ -89,14 +89,6 @@ export interface MatchMode {
   overrides: Partial<RuleSet>;
 }
 
-/**
- * 対局モードの定義。
- *
- * クイックは「拠点HPを削るだけ」ではなく「毎ターンの付与ptを増やして加速する」形にしてある。
- * HPだけ削るとアグロ一強になり（実測で強襲部隊が75%）、
- * 施設を建てて戦力を整えるという本作の骨格が機能しなくなるため。
- * 付与ptを3にすると重いデッキも展開が間に合い、勝率の散らばりが標準ルール並みに収まる。
- */
 export const MATCH_MODES: MatchMode[] = [
   {
     id: 'standard',
@@ -104,13 +96,6 @@ export const MATCH_MODES: MatchMode[] = [
     description: '施設を建てて戦力を整える、じっくり型の標準ルール。',
     turnsHint: '1人あたり約20ターン',
     overrides: { BASE_HP: 40, FREE_POINTS: 2 },
-  },
-  {
-    id: 'quick',
-    name: 'クイック',
-    description: '拠点HPが低く、毎ターンのポイントが3ptに増える加速ルール。短期決戦向け。',
-    turnsHint: '1人あたり約14ターン',
-    overrides: { BASE_HP: 30, FREE_POINTS: 3 },
   },
 ];
 

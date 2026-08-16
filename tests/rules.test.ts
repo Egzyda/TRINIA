@@ -168,35 +168,14 @@ describe('対局モード', () => {
     expect(r.FREE_POINTS).toBe(2);
   });
 
-  it('クイックは拠点HPを下げ、毎ターンの付与ptを増やして加速する', () => {
-    const q = rulesForMode('quick');
-    const s = rulesForMode('standard');
-    expect(q.BASE_HP).toBeLessThan(s.BASE_HP);
-    // HPを削るだけだとアグロ一強になるため、付与ptを増やして展開も速くしている
-    expect(q.FREE_POINTS).toBeGreaterThan(s.FREE_POINTS);
-  });
-
   it('モードのルールは対局状態に取り込まれ、engineがそれを参照する', () => {
     const [a, b] = DECK_PRESETS;
-    const quick = skipMulligan(
-      createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 1, rulesForMode('quick')),
-    );
-    expect(quick.rules.BASE_HP).toBe(rulesForMode('quick').BASE_HP);
-    expect(quick.players[0].baseHp).toBe(rulesForMode('quick').BASE_HP);
-    expect(quick.players[1].baseHp).toBe(rulesForMode('quick').BASE_HP);
-  });
-
-  it('クイックの分配はそのモードのpt数をちょうど使い切る必要がある', () => {
-    const [a, b] = DECK_PRESETS;
     const s = skipMulligan(
-      createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 7, rulesForMode('quick')),
+      createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 1, rulesForMode('standard')),
     );
-    expect(s.phase).toBe('allocate');
-    // スタンダードの2ptでは足りない
-    expect(applyAction(s, { type: 'allocate', fund: 2, mana: 0, aether: 0, draw: 0 }).ok).toBe(false);
-    const r = applyAction(s, { type: 'allocate', fund: 3, mana: 0, aether: 0, draw: 0 });
-    expect(r.ok).toBe(true);
-    expect(r.state.players[s.active].resources.fund).toBe(3);
+    expect(s.rules.BASE_HP).toBe(rulesForMode('standard').BASE_HP);
+    expect(s.players[0].baseHp).toBe(rulesForMode('standard').BASE_HP);
+    expect(s.players[1].baseHp).toBe(rulesForMode('standard').BASE_HP);
   });
 });
 

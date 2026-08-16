@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { ChevronLeft, Play, Shuffle } from 'lucide-react';
 import { DECK_PRESETS } from '../../cards/decks';
 import { DIFFICULTY_DESCRIPTION, DIFFICULTY_LABEL, type Difficulty } from '../../ai';
-import { MATCH_MODES, type MatchModeId } from '../../core/rules';
+import type { MatchModeId } from '../../core/rules';
 import type { DeckSlot } from '../deckStorage';
 
 interface Props {
@@ -30,15 +30,16 @@ const DIFFICULTIES: Difficulty[] = ['easy', 'normal', 'hard'];
 /** 相手デッキの選択肢に加える「ランダム」の特殊値。対局開始時に実際のプリセットへ解決する */
 export const RANDOM_FOE_ID = 'random';
 
+/** 対局モードは現状スタンダードのみ */
+const mode: MatchModeId = 'standard';
+
 export function SoloSetupScreen({ slots, playerName, onBack, onStart }: Props) {
   const usable = slots.filter((s) => s.cards.length === 20);
   const [myDeckIdx, setMyDeckIdx] = useState(0);
-  const [foeDeckId, setFoeDeckId] = useState(DECK_PRESETS[1].id);
+  const [foeDeckId, setFoeDeckId] = useState(RANDOM_FOE_ID);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
-  const [mode, setMode] = useState<MatchModeId>('standard');
 
   const myDeck = usable[myDeckIdx];
-  const selectedMode = MATCH_MODES.find((m) => m.id === mode)!;
   const isRandomFoe = foeDeckId === RANDOM_FOE_ID;
   const selectedFoe = DECK_PRESETS.find((p) => p.id === foeDeckId);
 
@@ -53,27 +54,6 @@ export function SoloSetupScreen({ slots, playerName, onBack, onStart }: Props) {
 
       <div className="screen-scroll">
         <div className="setup">
-          <SetupRow label="対局モード">
-            {/* 選択肢を等幅に並べると、幅のばらつきで行が崩れず視線が揃う */}
-            <div className="seg" style={{ gridTemplateColumns: `repeat(${MATCH_MODES.length}, 1fr)` }}>
-              {MATCH_MODES.map((m) => (
-                <button
-                  key={m.id}
-                  className={`seg-btn ${m.id === mode ? 'active' : ''}`}
-                  onClick={() => setMode(m.id)}
-                >
-                  {m.name}
-                </button>
-              ))}
-            </div>
-            <div className="setup-desc">
-              拠点HP{selectedMode.overrides.BASE_HP} / 毎ターン{selectedMode.overrides.FREE_POINTS}pt /{' '}
-              {selectedMode.turnsHint}
-              <br />
-              {selectedMode.description}
-            </div>
-          </SetupRow>
-
           <SetupRow label="使用デッキ">
             {usable.length === 0 && <span className="setup-desc">20枚のデッキがありません</span>}
             {/* 自作デッキは名前が長くなりがちなので、横並びにせず縦一列で省略なく見せる */}
