@@ -23,7 +23,7 @@ export interface BattleConfig {
   seed: number;
   /** 人間が操作する側 */
   mySide: PlayerId;
-  /** 対局モード（拠点HP・毎ターン付与pt・競り上限が変わる） */
+  /** 対局モード（拠点HP・毎ターン付与ptが変わる） */
   mode: MatchModeId;
 }
 
@@ -69,8 +69,6 @@ function stepDelayFor(action: GameAction): number {
 function fallbackActions(state: GameState, me: PlayerId): GameAction[] {
   const p = state.players[me];
   switch (state.phase) {
-    case 'auction':
-      return [{ type: 'bid', player: me, amount: 0 }];
     case 'allocate':
       return [{ type: 'allocate', fund: state.rules.FREE_POINTS, mana: 0, aether: 0, draw: 0 }];
     case 'respond':

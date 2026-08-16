@@ -2,7 +2,7 @@
 
 縦画面対戦型デジタルカードゲーム『TRINIA（トリニア）』のベースコード。
 
-「資金 / 魔力 / エーテル」3リソースによるビルド選択、拠点HPのオークションによる先攻決定、
+「資金 / 魔力 / エーテル」3リソースによるビルド選択、コイントス＋後攻ボーナスによる先攻決定、
 召喚酔いなしの戦闘、20枚循環デッキを核にした戦略型DCG。
 
 - 作業ルール（Claude Code 用）: [`CLAUDE.md`](CLAUDE.md)
@@ -54,9 +54,9 @@ npm run sim -- --cards             # カード別の使用局数と勝率
 npm run sim -- --ai hard           # AI難易度を変える
 npm run sim -- --ai-a hard --ai normal   # AI強度の比較（先手だけ別難易度）
 npm run sim -- --mode quick        # 対局モードを変える
-npm run sim -- --hp 40 --fp 3 --bid 17   # ルール数値をその場で振って比較
-npm run sim:auction                # 先攻権が拠点HP何点分の価値かを実測
-npm run sim:auction -- --mode quick
+npm run sim -- --hp 40 --fp 3 --second-bonus 2   # ルール数値をその場で振って比較
+npm run sim:bonus                  # 後攻ボーナス(pt)ごとの先攻勝率を実測
+npm run sim:bonus -- --mode quick
 npm run sim:inspect -- aggro_fund ramp_aether 999   # 1試合のログを表示
 ```
 
@@ -70,10 +70,9 @@ npm run sim:inspect -- aggro_fund ramp_aether 999   # 1試合のログを表示
 
 | | スタンダード | クイック |
 | --- | --- | --- |
-| 拠点HP | 50 | 30 |
+| 拠点HP | 40 | 30 |
 | 毎ターン付与pt | 2 | 3 |
-| オークション上限 | 25 | 14 |
-| 平均ターン数 | 約43 | 約27 |
+| 平均ターン数 | 約37 | 約27 |
 
 クイックは「HPを削るだけ」ではなく「毎ターンの付与ptを増やして加速する」設計にしてある。
 HPだけ削るとアグロ一強（実測75%）になり、施設を建てて戦力を整えるという
@@ -85,10 +84,10 @@ HPだけ削るとアグロ一強（実測75%）になり、施設を建てて戦
 data/cards_master.json      カード全30種（効果も宣言的に定義）
 src/core/                   ルールエンジン（DOM非依存・決定論的）
   types.ts                  型定義
-  rules.ts                  ルール定数と対局モード（拠点HP・付与pt・競り上限など）
+  rules.ts                  ルール定数と対局モード（拠点HP・付与ptなど）
   rng.ts                    シード付き乱数
   gameState.ts              HP・リソース・手札・場・山札とダメージ処理
-  auctionEngine.ts          先攻決定の競り
+  firstPlayer.ts            先攻・後攻の決定（コイントス＋後攻ボーナス）
   effects.ts                カード効果の解決
   mainPhaseEngine.ts        フェイズ進行・戦闘・行動リデューサ
 src/cards/                  カード生成ファクトリーとプリセットデッキ

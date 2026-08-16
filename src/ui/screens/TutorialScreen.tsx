@@ -2,7 +2,7 @@
  * チュートリアル画面（仕様書 3.1）
  * 基本ルールをテキストで案内する。数値はRULESから引くので調整が自動で反映される。
  */
-import { ChevronLeft, Coins, Gauge, Gavel, Hand, Layers, Swords, Timer } from 'lucide-react';
+import { ChevronLeft, Coins, Dices, Gauge, Hand, Layers, Swords, Timer } from 'lucide-react';
 import { MATCH_MODES, RULES } from '../../core/rules';
 
 export function TutorialScreen({ onBack }: { onBack: () => void }) {
@@ -29,18 +29,13 @@ export function TutorialScreen({ onBack }: { onBack: () => void }) {
 
           <section>
             <h3>
-              <Gavel size={16} color="#e8b53a" /> オークションで先攻を決める
+              <Dices size={16} color="#e8b53a" /> 先攻・後攻を決める
             </h3>
-            <p>
-              対局開始時、両者が「先攻権に支払う拠点HP」を同時に提示します
-              （上限は対局モードごとに変わります）。
-            </p>
+            <p>対局開始時、コイントスで先攻・後攻を決めます。拠点HPは両者とも満タンで始まります。</p>
             <ul>
-              <li>高く提示した側が先攻。提示した分だけHPが減った状態で始まります</li>
-              <li>低い側は後攻。拠点HPは満タンのままです</li>
-              <li>同点ならランダムで先後を決め、後攻側が初期リソース+{RULES.SECOND_PLAYER_BONUS}ptを得ます</li>
+              <li>先攻はそのままメインフェイズへ進みます</li>
+              <li>後攻は先攻に一歩遅れる分、初期リソース+{RULES.SECOND_PLAYER_BONUS}ptを得ます</li>
             </ul>
-            <p>先攻の価値は自分のデッキ次第。速攻デッキほど高く積む価値があります。</p>
           </section>
 
           <section>

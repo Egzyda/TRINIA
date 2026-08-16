@@ -7,7 +7,7 @@ const r = playMatch({ deckA, deckB, aiA: 'normal', aiB: 'normal', seed: Number(s
 
 console.log(r.state.log.map((l) => `T${l.turn} ${l.text}`).join('\n'));
 console.log('\n=== 結果 ===');
-console.log('勝者:', r.winner, r.reason, '| ターン:', r.turns, '| HP:', r.finalHp, '| bid:', r.bids);
+console.log('勝者:', r.winner, r.reason, '| ターン:', r.turns, '| HP:', r.finalHp, '| 先攻:', r.first);
 for (const p of r.state.players) {
   console.log(
     `${p.name}: 場=${p.units.map((u) => getCard(u.defId).name).join(',')} ` +

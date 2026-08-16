@@ -839,37 +839,6 @@ button {
   font-size: 15px;
 }
 
-/* --- オークションUI --- */
-
-.auction-value {
-  text-align: center;
-  font-size: 44px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  margin: 6px 0;
-}
-
-.auction-value small {
-  font-size: 14px;
-  color: var(--text-dim);
-  font-weight: 600;
-}
-
-.auction-hint {
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 12px;
-  margin-bottom: 12px;
-}
-
-.auction-slider {
-  width: 100%;
-  margin: 10px 0 16px;
-  accent-color: var(--accent);
-  height: 32px;
-}
-
 /* --- 手札 --- */
 
 .hand-bar {
@@ -1030,7 +999,7 @@ button {
 }
 
 /*
- * オークション・分配・応答などの必須選択モーダル。
+ * 分配・応答などの必須選択モーダル。
  *
  * 背景を下部操作エリア(--control-h)の分だけ手前で止めることで、
  * 「リソース配分中に手札が見えない」状態を避ける。
@@ -1147,7 +1116,7 @@ button {
   color: var(--text-dim);
 }
 
-/* --- 先攻/後攻の告知バナー（オークション解決直後に一時表示） --- */
+/* --- 先攻/後攻の告知バナー（コイントス直後に一時表示） --- */
 
 .first-banner {
   position: absolute;

@@ -15,7 +15,7 @@
  */
 import { getCard } from '../cards/cardFactory';
 import { canPay, costOptions, paidResourceOf } from '../cards/baseCard';
-import { bothBidsIn, isValidBid, resolveAuction } from './auctionEngine';
+import { resolveFirstPlayer } from './firstPlayer';
 import { shuffle } from './rng';
 import {
   buildFacility,
@@ -80,8 +80,6 @@ function dispatch(state: GameState, action: GameAction): string | undefined {
   switch (action.type) {
     case 'mulligan':
       return doMulligan(state, action.player, action.uids);
-    case 'bid':
-      return doBid(state, action.player, action.amount);
     case 'allocate':
       return doAllocate(state, action.fund, action.mana, action.aether, action.draw);
     case 'playCard':
@@ -139,25 +137,9 @@ function doMulligan(state: GameState, player: PlayerId, uids: string[]): string 
   log(state, player, `マリガン: ${returning.length}枚を引き直した。`);
 
   if (state.players.every((pl) => pl.mulliganDone)) {
-    state.phase = 'auction';
-    log(state, null, `両者は先攻権への提示HPを入力してください（0〜${state.rules.MAX_BID}）。`);
+    resolveFirstPlayer(state);
+    beginTurn(state);
   }
-  return undefined;
-}
-
-// ---------------------------------------------------------------------------
-// オークション
-// ---------------------------------------------------------------------------
-
-function doBid(state: GameState, player: PlayerId, amount: number): string | undefined {
-  if (state.phase !== 'auction') return 'いまはオークションフェイズではありません';
-  if (!isValidBid(state, amount)) return `提示HPは0〜${state.rules.MAX_BID}の整数です`;
-  if (state.players[player].bid >= 0) return 'すでに提示済みです';
-  state.players[player].bid = amount;
-  if (!bothBidsIn(state)) return undefined;
-
-  resolveAuction(state);
-  beginTurn(state);
   return undefined;
 }
 

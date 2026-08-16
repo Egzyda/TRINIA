@@ -4,32 +4,23 @@
 import { describe, expect, it } from 'vitest';
 import { createGame, opponentOf } from '../src/core/gameState';
 import { applyAction } from '../src/core/mainPhaseEngine';
-import {
-  configureRules,
-  MATCH_MODES,
-  resetRules,
-  RULES,
-  rulesForMode,
-  validateDeck,
-} from '../src/core/rules';
+import { configureRules, resetRules, RULES, rulesForMode, validateDeck } from '../src/core/rules';
 import { DECK_PRESETS, validatePresets } from '../src/cards/decks';
 import { ALL_CARDS, validateMaster } from '../src/cards/cardFactory';
 import type { GameState } from '../src/core/types';
 
-/** 両者とも引き直しなしでマリガンを終える（オークション以降の検証に集中するため） */
+/** 両者とも引き直しなしでマリガンを終える（先攻決定〜分配フェイズ以降の検証に集中するため） */
 function skipMulligan(s: GameState): GameState {
   s = applyAction(s, { type: 'mulligan', player: 0, uids: [] }).state;
   s = applyAction(s, { type: 'mulligan', player: 1, uids: [] }).state;
   return s;
 }
 
-function startedGame(bid0 = 3, bid1 = 1, seed = 42): GameState {
+/** マリガンを終えて対局が始まった状態を作る（先攻はコイントスで決まる） */
+function startedGame(seed = 42): GameState {
   const [a, b] = DECK_PRESETS;
-  let s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, seed);
-  s = skipMulligan(s);
-  s = applyAction(s, { type: 'bid', player: 0, amount: bid0 }).state;
-  s = applyAction(s, { type: 'bid', player: 1, amount: bid1 }).state;
-  return s;
+  const s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, seed);
+  return skipMulligan(s);
 }
 
 describe('マスターデータ', () => {
@@ -102,7 +93,7 @@ describe('マリガン', () => {
     expect(r.state.players[0].deck).toHaveLength(RULES.DECK_SIZE - RULES.INITIAL_HAND);
     const deckUids = r.state.players[0].deck.map((c) => c.uid);
     for (const uid of returned) expect(deckUids).toContain(uid);
-    // 相手はまだ終えていないのでオークションへは進まない
+    // 相手はまだ終えていないので次のフェイズへは進まない
     expect(r.state.phase).toBe('mulligan');
   });
 
@@ -123,74 +114,50 @@ describe('マリガン', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('両者が終えるとオークションへ進む', () => {
+  it('両者が終えると先攻/後攻が決まり分配フェイズへ進む', () => {
     const [a, b] = DECK_PRESETS;
     const s = skipMulligan(
       createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 9),
     );
-    expect(s.phase).toBe('auction');
+    expect(s.phase).toBe('allocate');
+    expect(s.firstPlayer).not.toBeNull();
+    expect(s.active).toBe(s.firstPlayer);
   });
 
-  it('マリガン中は分配やオークションの入力を受け付けない', () => {
+  it('マリガン中は分配の入力を受け付けない', () => {
     const [a, b] = DECK_PRESETS;
     const s = createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 9);
-    expect(applyAction(s, { type: 'bid', player: 0, amount: 0 }).ok).toBe(false);
+    expect(applyAction(s, { type: 'allocate', fund: 0, mana: 0, aether: 0, draw: 0 }).ok).toBe(false);
   });
 });
 
-describe('オークション（仕様書 2.2）', () => {
-  it('高く提示した側が先攻になり、提示分だけHPを失う', () => {
-    const s = startedGame(8, 2);
-    expect(s.active).toBe(0);
-    expect(s.players[0].baseHp).toBe(RULES.BASE_HP - 8);
+describe('先攻・後攻（コイントス）', () => {
+  it('拠点HPは両者とも満タンで始まる（先攻権の支払いは無い）', () => {
+    const s = startedGame();
+    expect(s.players[0].baseHp).toBe(RULES.BASE_HP);
     expect(s.players[1].baseHp).toBe(RULES.BASE_HP);
   });
 
-  it('後攻側は提示していてもHPを支払わない', () => {
-    const s = startedGame(1, 7);
-    expect(s.active).toBe(1);
-    expect(s.players[1].baseHp).toBe(RULES.BASE_HP - 7);
-    expect(s.players[0].baseHp).toBe(RULES.BASE_HP);
-  });
-
-  it('同点なら両者満タンで、後攻側だけ初期リソースボーナスを得る', () => {
-    const s = startedGame(4, 4);
+  it('後攻は毎回、初期リソース+SECOND_PLAYER_BONUSptを得る', () => {
+    const s = startedGame();
     const second = opponentOf(s.active);
-    expect(s.players[0].baseHp).toBe(RULES.BASE_HP);
-    expect(s.players[1].baseHp).toBe(RULES.BASE_HP);
     const total = (p: (typeof s.players)[number]) =>
       p.resources.fund + p.resources.mana + p.resources.aether;
     expect(total(s.players[second])).toBe(RULES.SECOND_PLAYER_BONUS);
     expect(total(s.players[s.active])).toBe(0);
   });
 
-  it('提示に差がある場合は後攻ボーナスがつかない（既定＝仕様書どおり同点時のみ）', () => {
-    const s = startedGame(6, 1);
-    const total = (p: (typeof s.players)[number]) =>
-      p.resources.fund + p.resources.mana + p.resources.aether;
-    expect(s.active).toBe(0);
-    expect(total(s.players[1])).toBe(0);
-    expect(total(s.players[0])).toBe(0);
-  });
-
-  it('SECOND_PLAYER_BONUS_ALWAYS を有効にすると常時付与に切り替わる', () => {
-    configureRules({ SECOND_PLAYER_BONUS_ALWAYS: true });
+  it('後攻ボーナスの大きさはルールで調整できる', () => {
+    configureRules({ SECOND_PLAYER_BONUS: 3 });
     try {
-      const s = startedGame(6, 1);
+      const s = startedGame();
+      const second = opponentOf(s.active);
       const total = (p: (typeof s.players)[number]) =>
         p.resources.fund + p.resources.mana + p.resources.aether;
-      expect(total(s.players[1])).toBe(RULES.SECOND_PLAYER_BONUS);
+      expect(total(s.players[second])).toBe(3);
     } finally {
       resetRules();
     }
-  });
-
-  it('上限を超える提示は拒否される', () => {
-    const [a, b] = DECK_PRESETS;
-    const s = skipMulligan(createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 5));
-    const r = applyAction(s, { type: 'bid', player: 0, amount: RULES.MAX_BID + 1 });
-    expect(r.ok).toBe(false);
-    expect(s.players[0].bid).toBe(-1);
   });
 });
 
@@ -209,15 +176,6 @@ describe('対局モード', () => {
     expect(q.FREE_POINTS).toBeGreaterThan(s.FREE_POINTS);
   });
 
-  it('競り上限は拠点HPに連動する（先攻権の価値がHPに比例するため）', () => {
-    for (const mode of MATCH_MODES) {
-      const r = rulesForMode(mode.id);
-      // 実測した均衡落札額は拠点HPの約4割。上限はそれをやや上回る位置に置く
-      expect(r.MAX_BID).toBeGreaterThan(r.BASE_HP * 0.4);
-      expect(r.MAX_BID).toBeLessThan(r.BASE_HP * 0.6);
-    }
-  });
-
   it('モードのルールは対局状態に取り込まれ、engineがそれを参照する', () => {
     const [a, b] = DECK_PRESETS;
     const quick = skipMulligan(
@@ -225,65 +183,55 @@ describe('対局モード', () => {
     );
     expect(quick.rules.BASE_HP).toBe(rulesForMode('quick').BASE_HP);
     expect(quick.players[0].baseHp).toBe(rulesForMode('quick').BASE_HP);
-
-    // 上限を超える提示はモードの上限で弾かれる
-    expect(applyAction(quick, { type: 'bid', player: 0, amount: quick.rules.MAX_BID + 1 }).ok).toBe(
-      false,
-    );
-    expect(applyAction(quick, { type: 'bid', player: 0, amount: quick.rules.MAX_BID }).ok).toBe(true);
+    expect(quick.players[1].baseHp).toBe(rulesForMode('quick').BASE_HP);
   });
 
   it('クイックの分配はそのモードのpt数をちょうど使い切る必要がある', () => {
     const [a, b] = DECK_PRESETS;
-    let s = createGame(
-      { name: 'A', deck: a.cards },
-      { name: 'B', deck: b.cards },
-      7,
-      rulesForMode('quick'),
+    const s = skipMulligan(
+      createGame({ name: 'A', deck: a.cards }, { name: 'B', deck: b.cards }, 7, rulesForMode('quick')),
     );
-    s = skipMulligan(s);
-    s = applyAction(s, { type: 'bid', player: 0, amount: 5 }).state;
-    s = applyAction(s, { type: 'bid', player: 1, amount: 1 }).state;
     expect(s.phase).toBe('allocate');
     // スタンダードの2ptでは足りない
     expect(applyAction(s, { type: 'allocate', fund: 2, mana: 0, aether: 0, draw: 0 }).ok).toBe(false);
     const r = applyAction(s, { type: 'allocate', fund: 3, mana: 0, aether: 0, draw: 0 });
     expect(r.ok).toBe(true);
-    expect(r.state.players[0].resources.fund).toBe(3);
+    expect(r.state.players[s.active].resources.fund).toBe(3);
   });
 });
 
 describe('ターン進行（仕様書 2.4）', () => {
-  it('オークション後、先攻はドローを済ませて分配フェイズに入る', () => {
-    const s = startedGame(5, 0);
+  it('マリガン後、先攻はドローを済ませて分配フェイズに入る', () => {
+    const s = startedGame();
     expect(s.phase).toBe('allocate');
     expect(s.turn).toBe(1);
-    expect(s.players[0].hand).toHaveLength(RULES.INITIAL_HAND + 1);
+    expect(s.players[s.active].hand).toHaveLength(RULES.INITIAL_HAND + 1);
   });
 
   it('分配は合計2ptをちょうど使い切る必要がある', () => {
-    const s = startedGame(5, 0);
+    const s = startedGame();
     expect(applyAction(s, { type: 'allocate', fund: 1, mana: 0, aether: 0, draw: 0 }).ok).toBe(false);
     expect(applyAction(s, { type: 'allocate', fund: 2, mana: 1, aether: 0, draw: 0 }).ok).toBe(false);
     expect(applyAction(s, { type: 'allocate', fund: 1, mana: 1, aether: 0, draw: 0 }).ok).toBe(true);
   });
 
   it('分配のドローは1ptにつき1枚', () => {
-    const s = startedGame(5, 0);
-    const before = s.players[0].hand.length;
+    const s = startedGame();
+    const before = s.players[s.active].hand.length;
     const r = applyAction(s, { type: 'allocate', fund: 0, mana: 0, aether: 0, draw: 2 });
     expect(r.ok).toBe(true);
-    expect(r.state.players[0].hand).toHaveLength(before + 2);
+    expect(r.state.players[s.active].hand).toHaveLength(before + 2);
     expect(r.state.phase).toBe('main');
   });
 
   it('未使用リソースは次のターンへ持ち越される（上限なし）', () => {
-    let s = startedGame(5, 0);
+    let s = startedGame();
+    const p0 = s.active;
     s = applyAction(s, { type: 'allocate', fund: 2, mana: 0, aether: 0, draw: 0 }).state;
     s = applyAction(s, { type: 'endTurn' }).state;
     s = applyAction(s, { type: 'allocate', fund: 0, mana: 2, aether: 0, draw: 0 }).state;
     s = applyAction(s, { type: 'endTurn' }).state;
-    // プレイヤー0の2ターン目。1ターン目の資金2が残っている
-    expect(s.players[0].resources.fund).toBeGreaterThanOrEqual(2);
+    // p0の2ターン目。1ターン目の資金2が残っている
+    expect(s.players[p0].resources.fund).toBeGreaterThanOrEqual(2);
   });
 });
