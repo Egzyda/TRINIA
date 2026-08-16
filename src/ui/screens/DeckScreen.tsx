@@ -9,7 +9,10 @@ import { ALL_CARDS } from '../../cards/cardFactory';
 import { formatCost } from '../../cards/baseCard';
 import { RULES } from '../../core/rules';
 import { MAX_SLOTS, slotStatus, type DeckSlot } from '../deckStorage';
-import type { Faction } from '../../core/types';
+import type { CardType, Faction } from '../../core/types';
+
+/** マスターデータへの追加順(no)がバラついていても、タイプ単位でまとまって見えるようにする */
+const TYPE_ORDER: Record<CardType, number> = { unit: 0, facility: 1, spell: 2 };
 
 interface Props {
   slots: DeckSlot[];
@@ -37,7 +40,9 @@ export function DeckScreen({ slots, onChange, onBack }: Props) {
     return map;
   }, [slot.cards]);
 
-  const visible = ALL_CARDS.filter((c) => filter === 'all' || c.faction === filter);
+  const visible = ALL_CARDS.filter((c) => filter === 'all' || c.faction === filter).sort(
+    (a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type] || a.no - b.no,
+  );
   const status = slotStatus(slot);
 
   const update = (cards: string[]) => {
