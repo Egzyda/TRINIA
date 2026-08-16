@@ -502,7 +502,7 @@ export function BattleScreen({ config, onExit }: Props) {
         <h1>ターン {state.turn}</h1>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           {battle.aiThinking && state.winner === null && (
-            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>相手思考中…</span>
+            <span className="thinking-indicator">相手思考中…</span>
           )}
           <button className="icon-btn" onClick={() => setShowLog(true)} aria-label="ログ">
             <ScrollText size={16} />
@@ -889,7 +889,7 @@ export function BattleScreen({ config, onExit }: Props) {
             そのまま次の対局が始まってしまう（「ホームに戻らず次の試合が始まる」報告）。
             対局後の既定の導線はホームへ戻る方なので、そちらを主ボタンにする。
           */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <div className="result-actions" style={{ display: 'flex', gap: 10, marginTop: 8 }}>
             <button className="btn btn-primary" onClick={onExit}>
               ホームへ
             </button>

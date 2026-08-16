@@ -122,6 +122,22 @@ button {
   letter-spacing: 0.04em;
 }
 
+.thinking-indicator {
+  font-size: 11px;
+  color: var(--text-dim);
+  animation: thinking-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes thinking-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -1307,26 +1323,66 @@ button {
   justify-content: center;
   gap: 12px;
   padding: 24px;
+  animation: fade-in 0.25s ease-out;
 }
 
 .result .verdict {
   font-size: 40px;
   font-weight: 800;
   letter-spacing: 0.1em;
+  animation: verdict-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
 }
 
 .result .verdict.win {
   color: var(--ok);
+  text-shadow:
+    0 0 24px rgba(63, 214, 138, 0.65),
+    0 0 56px rgba(63, 214, 138, 0.3);
 }
 
 .result .verdict.lose {
   color: var(--danger);
+  text-shadow: 0 0 20px rgba(255, 95, 109, 0.4);
+  animation:
+    verdict-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both,
+    verdict-shake 0.4s ease-out 0.55s;
+}
+
+@keyframes verdict-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+}
+
+@keyframes verdict-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
 }
 
 .result .reason {
   color: var(--text-dim);
   text-align: center;
   font-size: 13px;
+  animation: fade-in 0.4s ease-out 0.35s both;
+}
+
+.result .result-actions {
+  animation: fade-in 0.4s ease-out 0.5s both;
 }
 
 /* ------------------------------------------------------------------ */
