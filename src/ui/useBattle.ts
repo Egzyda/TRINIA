@@ -31,19 +31,29 @@ export interface BattleConfig {
  * AIの1手ごとの待ち時間(ms)。
  *
  * 盤面が動く手（召喚・攻撃・起動・打ち消し）は演出を見せたいので長く取り、
- * 分配やターン終了のような事務的な手は短く流す。
+ * 分配のような事務的な手は短く流す。
  * 一律に短くすると「いきなり状況が進んで自分のターンになる」ため。
+ *
+ * 攻撃は攻撃側の踏み込み・反撃・被弾フラッシュと視覚情報が特に多いので
+ * 他の盤面操作よりさらに長く取る。ターン終了も、直前が攻撃などの見せ場
+ * だった場合に間を置かず自分の番に切り替わると「何が起きたか分からないまま
+ * 手番が回ってきた」と感じやすいため、事務的な手よりは長めに待たせる。
  */
+const AI_DELAY_ATTACK = 1300;
 const AI_DELAY_IMPACTFUL = 950;
+const AI_DELAY_TURN_END = 850;
 const AI_DELAY_ROUTINE = 420;
 
 function stepDelayFor(action: GameAction): number {
   switch (action.type) {
-    case 'playCard':
     case 'attack':
+      return AI_DELAY_ATTACK;
+    case 'playCard':
     case 'activate':
     case 'respond':
       return AI_DELAY_IMPACTFUL;
+    case 'endTurn':
+      return AI_DELAY_TURN_END;
     default:
       return AI_DELAY_ROUTINE;
   }

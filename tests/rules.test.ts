@@ -195,9 +195,9 @@ describe('オークション（仕様書 2.2）', () => {
 });
 
 describe('対局モード', () => {
-  it('スタンダードは仕様書の拠点HP50・毎ターン2ptを使う', () => {
+  it('スタンダードは拠点HP40・毎ターン2ptを使う', () => {
     const r = rulesForMode('standard');
-    expect(r.BASE_HP).toBe(50);
+    expect(r.BASE_HP).toBe(40);
     expect(r.FREE_POINTS).toBe(2);
   });
 

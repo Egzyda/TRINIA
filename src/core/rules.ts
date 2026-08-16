@@ -117,7 +117,7 @@ export const MATCH_MODES: MatchMode[] = [
     name: 'スタンダード',
     description: '施設を建てて戦力を整える、じっくり型の標準ルール。',
     turnsHint: '1人あたり約20ターン',
-    overrides: { BASE_HP: 50, FREE_POINTS: 2, MAX_BID: 25 },
+    overrides: { BASE_HP: 40, FREE_POINTS: 2, MAX_BID: 20 },
   },
   {
     id: 'quick',
