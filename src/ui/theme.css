@@ -1053,19 +1053,25 @@ button {
   margin-bottom: 8px;
 }
 
-/* 盤面確認モード: 背景を透かして中身だけ畳む（見出しと戻すボタンは残す） */
-.action-backdrop.peek {
-  background: transparent;
-  pointer-events: none;
-}
-
-.action-backdrop.peek .sheet {
-  pointer-events: auto;
+/*
+ * 盤面確認モード: モーダルを丸ごと閉じて、戻すための小さなアイコンだけ残す。
+ * タイトル帯だけでも残すと盤面の一部を隠してしまうため、見出しごと消す。
+ */
+.action-peek-fab {
+  position: absolute;
+  right: 14px;
+  bottom: calc(var(--control-h, 0px) + 14px);
+  z-index: 42;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(15, 20, 28, 0.92);
-}
-
-.action-backdrop.peek .sheet-body {
-  display: none;
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  color: var(--accent);
 }
 
 .sheet {

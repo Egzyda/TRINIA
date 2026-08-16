@@ -1045,12 +1045,25 @@ function ActionSheet({
   onCancel?: () => void;
   children: React.ReactNode;
 }) {
-  // 盤面を確認したいときに中身だけ畳む。手札は常に見えている（背景が手札バーの
-  // 手前で止まるため）ので、隠れて困るのは盤面だけ。
+  // 盤面を確認したいときはアイコン1つまで畳む。タイトル帯すら残すと
+  // それだけで盤面の一部が隠れてしまうため、見出しごと消して目のマークだけにする。
   const [peek, setPeek] = useState(false);
 
+  if (peek) {
+    return (
+      <button
+        className="action-peek-fab"
+        onClick={() => setPeek(false)}
+        aria-label="選択に戻る"
+        title="選択に戻る"
+      >
+        <Eye size={18} />
+      </button>
+    );
+  }
+
   return (
-    <div className={`sheet-backdrop action-backdrop ${peek ? 'peek' : ''}`}>
+    <div className="sheet-backdrop action-backdrop">
       <div className="sheet">
         <div className="sheet-head">
           <div className="sheet-title" style={{ flex: 1 }}>
@@ -1058,11 +1071,11 @@ function ActionSheet({
           </div>
           <button
             className="icon-btn"
-            onClick={() => setPeek((v) => !v)}
-            aria-label={peek ? '選択に戻る' : '盤面を確認する'}
-            title={peek ? '選択に戻る' : '盤面を確認する'}
+            onClick={() => setPeek(true)}
+            aria-label="盤面を確認する"
+            title="盤面を確認する"
           >
-            {peek ? <Eye size={16} /> : <EyeOff size={16} />}
+            <EyeOff size={16} />
           </button>
           {onCancel && (
             <button className="icon-btn" onClick={onCancel} aria-label="キャンセル">
