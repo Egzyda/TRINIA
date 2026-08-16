@@ -19,11 +19,13 @@ import {
   opponentOf,
   summonUnit,
 } from './gameState';
+import { nextInt } from './rng';
 import type {
   CardDef,
   CardEffect,
   GameState,
   PlayerId,
+  PlayerState,
   ResourceKind,
   TargetRef,
   TargetSpec,
@@ -119,6 +121,14 @@ function takeTarget(ctx: EffectContext): TargetRef | undefined {
   return t;
 }
 
+/** 追撃の魔導士など「自動発動・対象は指定できない」効果向けに、敵ユニットを1体ランダムに選ぶ */
+function randomUnitRef(state: GameState, foe: PlayerState): TargetRef | undefined {
+  if (foe.units.length === 0) return undefined;
+  const picked = nextInt(state.rngState, foe.units.length);
+  state.rngState = picked.state;
+  return { kind: 'unit', uid: foe.units[picked.value].uid };
+}
+
 /** 単一の効果を解決する */
 export function resolveEffect(ctx: EffectContext, effect: CardEffect): void {
   const { state, controller } = ctx;
@@ -134,7 +144,9 @@ export function resolveEffect(ctx: EffectContext, effect: CardEffect): void {
           ? ({ kind: 'base', player: foeId } as TargetRef)
           : effect.target === 'selfBase'
             ? ({ kind: 'base', player: controller } as TargetRef)
-            : takeTarget(ctx);
+            : effect.auto && effect.target === 'enemyUnit'
+              ? randomUnitRef(state, foe)
+              : takeTarget(ctx);
       applyDamage(ctx, ref, effect.amount, sourceName);
       break;
     }

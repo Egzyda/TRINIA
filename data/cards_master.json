@@ -410,7 +410,7 @@
       "attack": 2,
       "hp": 4,
       "keywords": [],
-      "text": "自分がスペルを発動するたび、敵拠点に1ダメージ。",
+      "text": "自分がスペルを発動するたび、ランダムな敵ユニット1体に1ダメージ。",
       "image_path": "assets/cards/mana_pursuit_mage.png",
       "icon": "GiWizardStaff",
       "triggers": [
@@ -419,7 +419,7 @@
           "effect": {
             "kind": "damage",
             "amount": 1,
-            "target": "enemyBase",
+            "target": "enemyUnit",
             "auto": true
           }
         }
