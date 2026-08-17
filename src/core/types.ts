@@ -83,7 +83,7 @@ export type CardEffect =
   | { kind: 'destroyFacility'; target: TargetSpec }
   | { kind: 'summonFromDeck'; faction: Faction; maxCostTotal: number; cardType: CardType }
   | { kind: 'buffFriendlyUnits'; attack: number; duration: 'turn' }
-  | { kind: 'gainResource'; amount: number; excludePaid?: boolean }
+  | { kind: 'gainResource'; amount: number; excludePaid?: boolean; random?: boolean }
   | { kind: 'skipMainPhase'; turns: number; target: 'opponent' };
 
 export type CardPassive =

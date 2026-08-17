@@ -15,7 +15,7 @@ import { CardSheet, FacilityChip, HandCard, ResourceIcon, UnitChip } from '../co
 import { useBattle, type BattleConfig } from '../useBattle';
 import { getCard } from '../../cards/cardFactory';
 import { canPay, costOptions, formatCost, paidResourceOf } from '../../cards/baseCard';
-import { entryEffects, legalTargets, requiresTarget, targetSpecOf } from '../../core/effects';
+import { entryEffects, legalTargets, requiresResourceChoice, requiresTarget, targetSpecOf } from '../../core/effects';
 import { legalAttackTargets, playableCards } from '../../core/mainPhaseEngine';
 import { RESOURCE_KINDS, RESOURCE_LABEL } from '../../core/types';
 import type {
@@ -292,7 +292,7 @@ export function BattleScreen({ config, onExit }: Props) {
   const commit = (p: NonNullable<Pending>) => {
     if (p.kind === 'playCard') {
       if (p.costOption === undefined) return;
-      const needsResource = entryEffects(p.def).some((e) => e.kind === 'gainResource');
+      const needsResource = requiresResourceChoice(p.def);
       if (p.targets.length < p.specs.length) return;
       if (needsResource && !p.resource) return;
       if (dispatch({
@@ -372,7 +372,7 @@ export function BattleScreen({ config, onExit }: Props) {
 
     const specs = entryEffects(def).filter(requiresTarget).map(targetSpecOf);
     const next: Pending = { kind: 'playCard', uid, def, costOption, specs, targets: [] };
-    const needsResource = entryEffects(def).some((e) => e.kind === 'gainResource');
+    const needsResource = requiresResourceChoice(def);
     if (costOption !== undefined && specs.length === 0 && !needsResource) {
       if (dispatch({ type: 'playCard', uid, costOption })) setPending(null);
       return;
@@ -392,7 +392,7 @@ export function BattleScreen({ config, onExit }: Props) {
     if (pending.kind === 'playCard') {
       const targets = [...pending.targets, ref];
       const next = { ...pending, targets };
-      const needsResource = entryEffects(pending.def).some((e) => e.kind === 'gainResource');
+      const needsResource = requiresResourceChoice(pending.def);
       if (targets.length >= pending.specs.length && !needsResource) {
         commit(next);
       } else {
@@ -470,7 +470,7 @@ export function BattleScreen({ config, onExit }: Props) {
     !!pending &&
     !pendingNeedsCost &&
     ((pending.kind === 'playCard' &&
-      entryEffects(pending.def).some((e) => e.kind === 'gainResource') &&
+      requiresResourceChoice(pending.def) &&
       !pending.resource) ||
       (pending.kind === 'activate' &&
         pending.def.activated?.kind === 'convertResource' &&
@@ -803,7 +803,7 @@ export function BattleScreen({ config, onExit }: Props) {
             onPickCost={(i) => {
               if (pending.kind !== 'playCard') return;
               const next = { ...pending, costOption: i };
-              const needsResource = entryEffects(next.def).some((e) => e.kind === 'gainResource');
+              const needsResource = requiresResourceChoice(next.def);
               if (next.targets.length >= next.specs.length && !needsResource) {
                 commit(next);
               } else {

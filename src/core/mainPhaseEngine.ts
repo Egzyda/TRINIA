@@ -41,6 +41,7 @@ import {
 import {
   entryEffects,
   legalTargets,
+  requiresResourceChoice,
   requiresTarget,
   resolveEffect,
   targetSpecOf,
@@ -265,7 +266,7 @@ function doPlayCard(state: GameState, action: PlayCardAction): string | undefine
   const targetError = validateTargets(state, state.active, def, action.targets ?? []);
   if (targetError) return targetError;
 
-  if (def.type === 'spell' && def.effects?.some((e) => e.kind === 'gainResource')) {
+  if (def.type === 'spell' && requiresResourceChoice(def)) {
     const paid = paidResourceOf(cost);
     if (!action.chosenResource) return '獲得するリソースを選んでください';
     if (action.chosenResource === paid) return '支払ったものとは別のリソースを選んでください';
