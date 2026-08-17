@@ -290,24 +290,35 @@ describe('エーテル系', () => {
 });
 
 describe('ハイブリッド系', () => {
-  it('錬金術は支払ったものとは別のリソースを2得る', () => {
+  it('錬金術は支払ったものとは別のリソースをランダムに2得る（獲得先は選べない）', () => {
     const s = board({ hands: { 0: ['hybrid_alchemy'] }, resources: { 0: { fund: 1 } } });
-    const ok = applyAction(s, {
+    // chosenResourceを指定しなくても通る(獲得先の選択自体が不要になった)
+    const r = applyAction(s, {
       type: 'playCard',
       uid: handUid(s, P0, 'hybrid_alchemy'),
       costOption: 0,
-      chosenResource: 'aether',
     });
-    expect(ok.ok).toBe(true);
-    expect(ok.state.players[0].resources).toEqual({ fund: 0, mana: 0, aether: 2 });
+    expect(r.ok).toBe(true);
+    expect(r.state.players[0].resources.fund).toBe(0);
+    // 支払った資金以外(魔力かエーテル)のどちらかにちょうど2入り、もう片方は0のまま
+    const { mana, aether } = r.state.players[0].resources;
+    expect([mana, aether].sort()).toEqual([0, 2]);
+  });
 
-    const ng = applyAction(s, {
-      type: 'playCard',
-      uid: handUid(s, P0, 'hybrid_alchemy'),
-      costOption: 0,
-      chosenResource: 'fund',
-    });
-    expect(ng.ok).toBe(false);
+  it('錬金術の獲得先は乱数状態によって変わる（決定論的だが固定ではない）', () => {
+    const results = new Set<string>();
+    for (let seed = 0; seed < 30; seed++) {
+      const s = board({ seed, hands: { 0: ['hybrid_alchemy'] }, resources: { 0: { fund: 1 } } });
+      const r = applyAction(s, {
+        type: 'playCard',
+        uid: handUid(s, P0, 'hybrid_alchemy'),
+        costOption: 0,
+      });
+      if (r.ok) results.add(r.state.players[0].resources.aether > 0 ? 'aether' : 'mana');
+    }
+    // 十分な数のシードを振れば、魔力・エーテル両方が出現するはず
+    expect(results.has('aether')).toBe(true);
+    expect(results.has('mana')).toBe(true);
   });
 
   it('施設破壊工作は施設を即破壊する', () => {

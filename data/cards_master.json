@@ -700,14 +700,15 @@
         }
       ],
       "keywords": [],
-      "text": "資金1または魔力1を支払い、それとは別のリソースを2得る。",
+      "text": "資金1または魔力1を支払い、それ以外の2種のリソースのどちらかをランダムに2得る。",
       "image_path": "assets/cards/hybrid_alchemy.png",
       "icon": "GiMagicPotion",
       "effects": [
         {
           "kind": "gainResource",
           "amount": 2,
-          "excludePaid": true
+          "excludePaid": true,
+          "random": true
         }
       ]
     },

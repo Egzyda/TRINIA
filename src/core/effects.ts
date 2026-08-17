@@ -20,6 +20,7 @@ import {
   summonUnit,
 } from './gameState';
 import { nextInt } from './rng';
+import { RESOURCE_KINDS } from './types';
 import type {
   CardDef,
   CardEffect,
@@ -60,6 +61,11 @@ export function entryEffects(def: CardDef): CardEffect[] {
 export function targetSpecOf(effect: CardEffect): TargetSpec {
   if ('target' in effect && effect.target !== 'opponent') return effect.target;
   return 'none';
+}
+
+/** カードの効果群が、プレイ時に「獲得するリソースの選択」を要求するか（錬金術のランダム化以降はfalse） */
+export function requiresResourceChoice(def: CardDef): boolean {
+  return entryEffects(def).some((e) => e.kind === 'gainResource' && !e.random);
 }
 
 /** この効果はプレイ時に対象指定を要求するか */
@@ -225,6 +231,16 @@ export function resolveEffect(ctx: EffectContext, effect: CardEffect): void {
     }
 
     case 'gainResource': {
+      if (effect.random) {
+        const pool = RESOURCE_KINDS.filter((r) => !(effect.excludePaid && r === ctx.paidResource));
+        if (pool.length === 0) break;
+        const picked = nextInt(state.rngState, pool.length);
+        state.rngState = picked.state;
+        const gain = pool[picked.value];
+        me.resources[gain] += effect.amount;
+        log(state, controller, `${sourceName}: ${gain}を${effect.amount}得た（ランダム）。`);
+        break;
+      }
       const gain = ctx.chosenResource;
       if (!gain) break;
       if (effect.excludePaid && gain === ctx.paidResource) break;
