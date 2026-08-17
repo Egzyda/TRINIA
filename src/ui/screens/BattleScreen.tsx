@@ -58,7 +58,13 @@ interface FirstBannerInfo {
 }
 
 export function BattleScreen({ config, onExit }: Props) {
-  const battle = useBattle(config);
+  /*
+   * 先攻/後攻の告知バナーを表示している間はAIの手番を止める。
+   * 止めないと、AIが先攻のときバナーが消える前に裏でターンが進んでしまい、
+   * バナーが消えた瞬間には盤面がすでに動いていた状態になる。
+   */
+  const [firstBanner, setFirstBanner] = useState<FirstBannerInfo | null>(null);
+  const battle = useBattle(config, firstBanner !== null);
   const { state, dispatch } = battle;
   const me = config.mySide;
   const foe: PlayerId = me === 0 ? 1 : 0;
@@ -71,7 +77,6 @@ export function BattleScreen({ config, onExit }: Props) {
   const [discardPick, setDiscardPick] = useState<string[]>([]);
   const [mulliganPick, setMulliganPick] = useState<string[]>([]);
   const [alloc, setAlloc] = useState({ fund: 0, mana: 0, aether: 0, draw: 0 });
-  const [firstBanner, setFirstBanner] = useState<FirstBannerInfo | null>(null);
 
   const myPlayer = state.players[me];
   const foePlayer = state.players[foe];
