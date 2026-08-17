@@ -92,7 +92,12 @@ export interface Battle {
   restart: () => void;
 }
 
-export function useBattle(config: BattleConfig): Battle {
+/**
+ * @param paused true の間はAIの手番を進めない。
+ *   先攻/後攻の告知バナーを表示している間に裏でAIのターンが進んでしまい、
+ *   バナーが消えた瞬間には盤面がすでに動いていた、という問題を避けるため。
+ */
+export function useBattle(config: BattleConfig, paused = false): Battle {
   const foeSide: PlayerId = config.mySide === 0 ? 1 : 0;
 
   const makeInitial = useCallback((): GameState => {
@@ -153,6 +158,7 @@ export function useBattle(config: BattleConfig): Battle {
 
   // AIの手番を1手ずつ進める
   useEffect(() => {
+    if (paused) return;
     if (state.winner !== null) {
       setAiThinking(false);
       return;
@@ -195,7 +201,7 @@ export function useBattle(config: BattleConfig): Battle {
       clearTimeout(timer);
       clearTimeout(watchdog);
     };
-  }, [state, foeSide, retryTick]);
+  }, [state, foeSide, retryTick, paused]);
 
   return useMemo(
     () => ({
